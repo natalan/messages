@@ -1,0 +1,13 @@
+name = "cloudflare-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Uncomment to deploy to a specific route
+# routes = [
+#   { pattern = "example.com/*", zone_name = "example.com" }
+# ]
+
+# Uncomment for environment variables
+# [vars]
+# ENVIRONMENT = "production"
+

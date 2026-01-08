@@ -1,0 +1,22 @@
+{
+  "name": "cloudflare-worker",
+  "version": "1.0.0",
+  "description": "A Cloudflare Worker project",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev"
+  },
+  "keywords": [
+    "cloudflare",
+    "worker",
+    "edge"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
+
