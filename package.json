@@ -1,7 +1,7 @@
 {
-  "name": "cloudflare-worker",
+  "name": "email-ingest-api",
   "version": "1.0.0",
-  "description": "A Cloudflare Worker project",
+  "description": "Email ingest API Cloudflare Worker",
   "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
