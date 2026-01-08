@@ -1,25 +1,14 @@
 /**
- * Welcome to Cloudflare Workers! This is your first worker.
+ * Email Ingest API - Cloudflare Worker
  *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787 to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
+ * API endpoints:
+ * - GET  /health - Health check (public)
+ * - POST /inbound-email - Receive inbound email webhooks (protected)
  */
 
+import { isAuthorized } from "./utils/auth.js";
 
-function isAuthorized(req, env) {
-    const auth = req.headers.get("authorization");
-    if (!auth) return false;
-  
-    const [type, token] = auth.split(" ");
-    if (type !== "Bearer") return false;
-  
-    return token === env.INGEST_TOKEN;
-  }
-  
-  export default {
+export default {
     async fetch(req, env) {
       const url = new URL(req.url);
   
