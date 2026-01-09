@@ -1,0 +1,54 @@
+# Cursor Rules for Email Ingest API
+
+## Project Context
+This is a Cloudflare Worker project that provides an email ingest API. The worker handles inbound email webhooks with authentication.
+
+## Code Style
+- Use ES modules (import/export)
+- Use 2-space indentation
+- Use double quotes for strings
+- Always use semicolons
+- Use const/let, avoid var
+- Prefer arrow functions for callbacks
+- Use async/await over promises when possible
+
+## Project Structure
+- `src/index.js` - Main worker entry point and routing
+- `src/utils/` - Utility functions (auth, helpers, etc.)
+- `src/scripts/` - Scripts and tooling
+- `wrangler.toml` - Cloudflare Worker configuration
+
+## Authentication
+- All endpoints except `/health` require Bearer token authentication
+- Token is stored in `env.INGEST_TOKEN` (set in Cloudflare Workers dashboard or wrangler.toml)
+
+## Error Handling
+- Return appropriate HTTP status codes
+- Use clear, consistent error messages
+- Log errors appropriately (use console.error for errors, console.warn for warnings)
+
+## Testing
+- Use Vitest with @cloudflare/vitest-pool-workers for all tests
+- Write tests for utility functions in `src/utils/__tests__/`
+- Write integration tests in `src/__tests__/`
+- Tests run in the actual Cloudflare Workers runtime
+- Test authentication logic thoroughly
+- Test endpoint handlers with various scenarios (success, error, edge cases)
+- Use descriptive test names following the pattern: `should [expected behavior]`
+- Keep tests simple and focused on one behavior per test
+
+## Environment Variables
+- `INGEST_TOKEN` - Required for authenticated endpoints
+- Never commit secrets or tokens to the repository
+- Use Cloudflare Workers secrets or environment variables
+
+## Deployment
+- Deploy using `npm run deploy`
+- Ensure environment variables are set in Cloudflare dashboard before deployment
+- Test locally with `npm run dev` before deploying
+
+## Code Review Guidelines
+- Keep functions small and focused
+- Use descriptive variable and function names
+- Add JSDoc comments for exported functions
+- Handle edge cases and errors gracefully
