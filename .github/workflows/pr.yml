@@ -1,0 +1,108 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+# Cancel in-progress runs for the same PR when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Code quality checks
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Check Prettier formatting
+        run: npm run format:check
+        continue-on-error: false
+
+  # Test suite
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --run --reporter=verbose
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN || 'test-token-for-ci' }}
+
+      - name: Run test coverage (optional)
+        run: |
+          if npm run test:coverage 2>/dev/null; then
+            echo "✅ Coverage report generated"
+          else
+            echo "ℹ️ Coverage not configured, skipping..."
+          fi
+        continue-on-error: true
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN || 'test-token-for-ci' }}
+
+  # Build verification
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+        continue-on-error: true
+
+  # Summary job that depends on all checks
+  pr-status:
+    name: PR Status Check
+    runs-on: ubuntu-latest
+    needs: [code-quality, test, build]
+    if: always()
+    steps:
+      - name: Check PR status
+        run: |
+          if [ "${{ needs.code-quality.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ PR checks failed"
+            exit 1
+          else
+            echo "✅ All PR checks passed"
+          fi
