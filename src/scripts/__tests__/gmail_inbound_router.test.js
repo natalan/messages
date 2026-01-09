@@ -3,12 +3,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 // Testable version of the gmail_inbound_router functions
 // This mirrors the logic from gmail_inbound_router.js but with injectable dependencies
 function createTestableRouter(deps) {
-  const {
-    PropertiesService,
-    GmailApp,
-    UrlFetchApp,
-    Logger,
-  } = deps;
+  const { PropertiesService, GmailApp, UrlFetchApp, Logger } = deps;
 
   const CFG = {
     LABEL_NAME: "capehost/inbound",
