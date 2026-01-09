@@ -3,7 +3,7 @@
  *
  * API endpoints:
  * - GET  /health - Health check (public)
- * - POST /inbound-email - Receive inbound email webhooks (protected)
+ * - POST /inbound/email - Receive inbound email webhooks (protected)
  */
 
 import { isAuthorized } from "./utils/auth.js";
@@ -22,7 +22,7 @@ export default {
       return new Response("unauthorized", { status: 401 });
     }
 
-    if (url.pathname === "/inbound-email" && req.method === "POST") {
+    if (url.pathname === "/inbound/email" && req.method === "POST") {
       const payload = await req.json();
       console.log("inbound email payload", payload);
 
