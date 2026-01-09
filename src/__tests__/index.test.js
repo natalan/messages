@@ -32,9 +32,9 @@ describe("Email Ingest API Worker", () => {
     });
   });
 
-  describe("POST /inbound-email", () => {
+  describe("POST /webhooks/email", () => {
     it("should require authentication", async () => {
-      const req = new Request("https://example.com/inbound/email", {
+      const req = new Request("https://example.com/webhooks/email", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -55,7 +55,7 @@ describe("Email Ingest API Worker", () => {
         messages: [{ id: "123", subject: "Test" }],
       };
 
-      const req = new Request("https://example.com/inbound/email", {
+      const req = new Request("https://example.com/webhooks/email", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -72,7 +72,7 @@ describe("Email Ingest API Worker", () => {
     });
 
     it("should only accept POST method", async () => {
-      const req = new Request("https://example.com/inbound/email", {
+      const req = new Request("https://example.com/webhooks/email", {
         method: "GET",
         headers: {
           authorization: "Bearer test-secret-token-123",

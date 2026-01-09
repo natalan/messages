@@ -7,7 +7,7 @@ function createTestableRouter(deps) {
 
   const CFG = {
     LABEL_NAME: "capehost/inbound",
-    WORKER_URL: "https://api.capehost.ai/inbound/email",
+    WORKER_URL: "https://api.capehost.ai/webhooks/email",
     INGEST_TOKEN: PropertiesService.getScriptProperties().getProperty("INGEST_TOKEN"),
     MAX_THREADS_PER_RUN: 10,
     MAX_MESSAGES_PER_THREAD: 5,
@@ -195,7 +195,7 @@ describe("gmail_inbound_router", () => {
 
     it("should have correct configuration values", () => {
       expect(script.CFG.LABEL_NAME).toBe("capehost/inbound");
-      expect(script.CFG.WORKER_URL).toBe("https://api.capehost.ai/inbound/email");
+      expect(script.CFG.WORKER_URL).toBe("https://api.capehost.ai/webhooks/email");
       expect(script.CFG.MAX_THREADS_PER_RUN).toBe(10);
       expect(script.CFG.MAX_MESSAGES_PER_THREAD).toBe(5);
     });
@@ -308,7 +308,7 @@ describe("gmail_inbound_router", () => {
       script.postToWorker(payload);
 
       expect(mocks.UrlFetchApp.fetch).toHaveBeenCalledWith(
-        "https://api.capehost.ai/inbound/email",
+        "https://api.capehost.ai/webhooks/email",
         expect.objectContaining({
           method: "post",
           contentType: "application/json",
