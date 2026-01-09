@@ -6,7 +6,7 @@ A simple Cloudflare Worker project built with JavaScript.
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js (v22 or higher)
 - npm or yarn
 - A Cloudflare account
 
