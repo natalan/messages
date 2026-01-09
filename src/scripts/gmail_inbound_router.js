@@ -3,7 +3,7 @@
  */
 const CFG = {
   LABEL_NAME: "capehost/inbound",
-  WORKER_URL: "https://api.capehost.ai/inbound/email",
+  WORKER_URL: "https://api.capehost.ai/webhooks/email",
   INGEST_TOKEN: PropertiesService.getScriptProperties().getProperty("INGEST_TOKEN"),
   MAX_THREADS_PER_RUN: 10,
   MAX_MESSAGES_PER_THREAD: 5,
