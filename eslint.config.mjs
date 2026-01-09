@@ -34,7 +34,7 @@ export default [
       quotes: ["error", "double"],
       semi: ["error", "always"],
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "no-console": ["warn", { allow: ["log", "warn", "error"] }],
       "prefer-const": "error",
       "no-var": "error",
       "object-shorthand": "error",
