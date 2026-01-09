@@ -11,3 +11,14 @@ compatibility_date = "2024-01-01"
 # [vars]
 # ENVIRONMENT = "production"
 
+# Logging configuration
+# Logs are enabled by default in Cloudflare Workers
+# View logs with: wrangler tail
+# Or in the Cloudflare Dashboard under Workers > Logs
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
