@@ -4,13 +4,13 @@
 const CFG = {
   LABEL_NAME: "capehost/inbound",
   WORKER_URL: "https://api.capehost.ai/inbound/email",
-  SHARED_SECRET: PropertiesService.getScriptProperties().getProperty("CAPEHOST_SHARED_SECRET"),
+  INGEST_TOKEN: PropertiesService.getScriptProperties().getProperty("INGEST_TOKEN"),
   MAX_THREADS_PER_RUN: 10,
   MAX_MESSAGES_PER_THREAD: 5,
 };
 
-if (!CFG.SHARED_SECRET) {
-  throw new Error("Missing CAPEHOST_SHARED_SECRET in Script Properties");
+if (!CFG.INGEST_TOKEN) {
+  throw new Error("Missing INGEST_TOKEN in Script Properties");
 }
 
 function run() {
@@ -85,7 +85,7 @@ function postToWorker(payload, metadata = {}) {
     payload: JSON.stringify(payload),
     muteHttpExceptions: true,
     headers: {
-      "X-Capehost-Secret": CFG.SHARED_SECRET,
+      Authorization: `Bearer ${CFG.INGEST_TOKEN}`,
     },
   });
 
