@@ -122,9 +122,7 @@ describe("normalize service", () => {
       expect(result).toContain("Message 2");
       expect(result).toContain("Welcome message");
       expect(result).toContain("Thank you");
-      expect(result.indexOf("Welcome message")).toBeLessThan(
-        result.indexOf("Thank you")
-      );
+      expect(result.indexOf("Welcome message")).toBeLessThan(result.indexOf("Thank you"));
     });
 
     it("should use bodyPlain over bodyHtml when available", () => {
@@ -240,7 +238,12 @@ describe("normalize service", () => {
     });
 
     it("should accept property_id and booking_id", () => {
-      const result = normalizeWebhookPayload(mockPayload, SOURCE_TYPES.GMAIL_WEBHOOK, "prop-123", "book-456");
+      const result = normalizeWebhookPayload(
+        mockPayload,
+        SOURCE_TYPES.GMAIL_WEBHOOK,
+        "prop-123",
+        "book-456"
+      );
 
       expect(result.property_id).toBe("prop-123");
       expect(result.booking_id).toBe("book-456");

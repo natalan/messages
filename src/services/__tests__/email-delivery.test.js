@@ -227,11 +227,7 @@ describe("email-delivery service", () => {
         subject: "Test",
         draft: "Draft",
         metadata: {
-          timestamps: [
-            "2024-01-01T10:00:00Z",
-            "2024-01-01T11:00:00Z",
-            "2024-01-01T12:00:00Z",
-          ],
+          timestamps: ["2024-01-01T10:00:00Z", "2024-01-01T11:00:00Z", "2024-01-01T12:00:00Z"],
         },
       };
 
@@ -241,11 +237,7 @@ describe("email-delivery service", () => {
         "Email delivery (stub):",
         expect.objectContaining({
           metadata: expect.objectContaining({
-            timestamps: [
-              "2024-01-01T10:00:00Z",
-              "2024-01-01T11:00:00Z",
-              "2024-01-01T12:00:00Z",
-            ],
+            timestamps: ["2024-01-01T10:00:00Z", "2024-01-01T11:00:00Z", "2024-01-01T12:00:00Z"],
           }),
         })
       );
