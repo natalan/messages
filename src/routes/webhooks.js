@@ -47,14 +47,12 @@ export async function handleWebhookEmail(req, env) {
       payload: sanitizedPayload,
     });
 
-    // Extract property_id and booking_id from payload (if available)
-    // These might come from label parsing or metadata in future
-    const property_id = payload.property_id || null;
-    const booking_id = payload.booking_id || null;
+    // Extract source from payload (if available)
     const source = payload.source || SOURCE_TYPES.GMAIL_WEBHOOK;
 
     // Step 1: Normalize payload into knowledge item
-    const knowledgeItem = normalizeWebhookPayload(payload, source, property_id, booking_id);
+    // property_id and booking_id will be extracted from payload in normalizeWebhookPayload
+    const knowledgeItem = normalizeWebhookPayload(payload, source);
 
     // Step 2: Store knowledge item
     let storedId;
@@ -82,11 +80,11 @@ export async function handleWebhookEmail(req, env) {
     let suggestedReply = null;
     if (knowledgeItem.normalized.latest_guest_message) {
       try {
-        const propertyContext = property_id
-          ? { property_id, property_name: null, metadata: {} }
+        const propertyContext = knowledgeItem.property_id
+          ? { property_id: knowledgeItem.property_id, property_name: null, metadata: {} }
           : null;
 
-        suggestedReply = await suggestReply(knowledgeItem.normalized, propertyContext);
+        suggestedReply = await suggestReply(knowledgeItem.normalized, propertyContext, env);
 
         console.log(`[${new Date().toISOString()}] Suggested reply generated`, {
           knowledgeItemId: storedId,
