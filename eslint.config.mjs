@@ -29,7 +29,8 @@ export default [
       },
     },
     rules: {
-      indent: ["error", 2, { SwitchCase: 1 }],
+      // Disable indent rule - Prettier handles formatting
+      indent: "off",
       "linebreak-style": ["error", "unix"],
       quotes: ["error", "double"],
       semi: ["error", "always"],
