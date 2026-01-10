@@ -3,12 +3,7 @@
  * Extracts latest guest message and full thread history from raw payload
  */
 
-import {
-  SCHEMA_VERSION,
-  SOURCE_TYPES,
-  CONTENT_TYPES,
-  INGEST_METHODS,
-} from "../types/schema.js";
+import { SCHEMA_VERSION, SOURCE_TYPES, CONTENT_TYPES, INGEST_METHODS } from "../types/schema.js";
 
 /**
  * Identify if an email is from a guest (vs host)
@@ -123,12 +118,12 @@ export function normalizeWebhookPayload(
   const normalized = {
     latest_guest_message: latestGuestMessage
       ? {
-        id: latestGuestMessage.id,
-        date: latestGuestMessage.date,
-        from: latestGuestMessage.from,
-        subject: latestGuestMessage.subject,
-        bodyPlain: latestGuestMessage.bodyPlain,
-      }
+          id: latestGuestMessage.id,
+          date: latestGuestMessage.date,
+          from: latestGuestMessage.from,
+          subject: latestGuestMessage.subject,
+          bodyPlain: latestGuestMessage.bodyPlain,
+        }
       : null,
     full_thread_text: fullThreadText,
     message_count: messages.length,

@@ -2,10 +2,7 @@
  * Webhook routes handler
  */
 
-import {
-  validateWebhookPayload,
-  sanitizeForLogging,
-} from "../services/validation.js";
+import { validateWebhookPayload, sanitizeForLogging } from "../services/validation.js";
 import { normalizeWebhookPayload } from "../services/normalize.js";
 import { KVStorageAdapter } from "../storage/index.js";
 import { suggestReply } from "../services/suggest-reply.js";
@@ -34,13 +31,10 @@ export async function handleWebhookEmail(req, env) {
         error: validation.error,
         processingTime: Date.now() - startTime,
       });
-      return new Response(
-        JSON.stringify({ error: "Invalid payload", details: validation.error }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Invalid payload", details: validation.error }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
     }
 
     // Log incoming webhook (sanitized)
@@ -60,12 +54,7 @@ export async function handleWebhookEmail(req, env) {
     const source = payload.source || SOURCE_TYPES.GMAIL_WEBHOOK;
 
     // Step 1: Normalize payload into knowledge item
-    const knowledgeItem = normalizeWebhookPayload(
-      payload,
-      source,
-      property_id,
-      booking_id
-    );
+    const knowledgeItem = normalizeWebhookPayload(payload, source, property_id, booking_id);
 
     // Step 2: Store knowledge item
     let storedId;
@@ -81,14 +70,11 @@ export async function handleWebhookEmail(req, env) {
         processingTime: Date.now() - startTime,
       });
     } catch (storageError) {
-      console.error(
-        `[${new Date().toISOString()}] Failed to store knowledge item`,
-        {
-          error: storageError.message,
-          stack: storageError.stack,
-          processingTime: Date.now() - startTime,
-        }
-      );
+      console.error(`[${new Date().toISOString()}] Failed to store knowledge item`, {
+        error: storageError.message,
+        stack: storageError.stack,
+        processingTime: Date.now() - startTime,
+      });
       // Continue processing even if storage fails (degraded mode)
     }
 
@@ -100,10 +86,7 @@ export async function handleWebhookEmail(req, env) {
           ? { property_id, property_name: null, metadata: {} }
           : null;
 
-        suggestedReply = await suggestReply(
-          knowledgeItem.normalized,
-          propertyContext
-        );
+        suggestedReply = await suggestReply(knowledgeItem.normalized, propertyContext);
 
         console.log(`[${new Date().toISOString()}] Suggested reply generated`, {
           knowledgeItemId: storedId,
@@ -112,14 +95,11 @@ export async function handleWebhookEmail(req, env) {
           processingTime: Date.now() - startTime,
         });
       } catch (suggestError) {
-        console.error(
-          `[${new Date().toISOString()}] Failed to generate suggested reply`,
-          {
-            error: suggestError.message,
-            stack: suggestError.stack,
-            processingTime: Date.now() - startTime,
-          }
-        );
+        console.error(`[${new Date().toISOString()}] Failed to generate suggested reply`, {
+          error: suggestError.message,
+          stack: suggestError.stack,
+          processingTime: Date.now() - startTime,
+        });
         // Continue even if suggestion fails
       }
     }
@@ -151,23 +131,17 @@ export async function handleWebhookEmail(req, env) {
             processingTime: Date.now() - startTime,
           });
         } else {
-          console.error(
-            `[${new Date().toISOString()}] Failed to send host notification`,
-            {
-              error: deliveryResult.error,
-              processingTime: Date.now() - startTime,
-            }
-          );
+          console.error(`[${new Date().toISOString()}] Failed to send host notification`, {
+            error: deliveryResult.error,
+            processingTime: Date.now() - startTime,
+          });
         }
       } catch (deliveryError) {
-        console.error(
-          `[${new Date().toISOString()}] Error sending host notification`,
-          {
-            error: deliveryError.message,
-            stack: deliveryError.stack,
-            processingTime: Date.now() - startTime,
-          }
-        );
+        console.error(`[${new Date().toISOString()}] Error sending host notification`, {
+          error: deliveryError.message,
+          stack: deliveryError.stack,
+          processingTime: Date.now() - startTime,
+        });
         // Don't fail the webhook if delivery fails
       }
     }
@@ -194,12 +168,9 @@ export async function handleWebhookEmail(req, env) {
       processingTime: Date.now() - startTime,
     });
 
-    return new Response(
-      JSON.stringify({ error: "Failed to process request" }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: "Failed to process request" }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
 }

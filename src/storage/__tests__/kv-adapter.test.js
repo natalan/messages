@@ -110,11 +110,7 @@ describe("KVStorageAdapter", () => {
 
       await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
-      expect(mockKV.put).toHaveBeenCalledWith(
-        expect.any(String),
-        itemJson,
-        expect.any(Object)
-      );
+      expect(mockKV.put).toHaveBeenCalledWith(expect.any(String), itemJson, expect.any(Object));
     });
 
     it("should store metadata correctly", async () => {
@@ -165,11 +161,9 @@ describe("KVStorageAdapter", () => {
 
       await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
-      expect(mockKV.put).toHaveBeenCalledWith(
-        "index:thread:thread-789",
-        expect.any(String),
-        { expirationTtl: 31536000 }
-      );
+      expect(mockKV.put).toHaveBeenCalledWith("index:thread:thread-789", expect.any(String), {
+        expirationTtl: 31536000,
+      });
     });
 
     it("should not create property index when property_id is null", async () => {

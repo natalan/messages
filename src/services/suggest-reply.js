@@ -27,11 +27,14 @@ export async function suggestReply(thread, propertyContext = null) {
   let draft = "";
 
   if (guestMessageLower.includes("check-in") || guestMessageLower.includes("arrival")) {
-    draft = "Thank you for reaching out about your check-in. We're looking forward to hosting you. Please let us know if you have any questions about your stay.";
+    draft =
+      "Thank you for reaching out about your check-in. We're looking forward to hosting you. Please let us know if you have any questions about your stay.";
   } else if (guestMessageLower.includes("check-out") || guestMessageLower.includes("departure")) {
-    draft = "Thank you for your message regarding check-out. We hope you enjoyed your stay! If you need anything before your departure, please don't hesitate to ask.";
+    draft =
+      "Thank you for your message regarding check-out. We hope you enjoyed your stay! If you need anything before your departure, please don't hesitate to ask.";
   } else if (guestMessageLower.includes("question") || guestMessageLower.includes("?")) {
-    draft = "Thank you for your question. We're here to help and will get back to you with more information shortly.";
+    draft =
+      "Thank you for your question. We're here to help and will get back to you with more information shortly.";
   } else {
     draft = "Thank you for your message. We've received it and will respond soon.";
   }
