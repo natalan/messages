@@ -3,6 +3,8 @@
  * Sends suggested reply drafts and notifications to host
  */
 
+import { createEmailProvider } from "./email-provider.js";
+
 /**
  * Send email notification to host with suggested reply
  * @param {Object} env - Environment with email configuration
@@ -14,18 +16,51 @@
  * @returns {Promise<{success: boolean, messageId?: string, error?: string}>} - Delivery result
  */
 export async function sendHostNotification(env, options) {
-  // MVP: Stub implementation
-  // TODO: Integrate with email service (SendGrid, Resend, etc.)
-
   const { to, subject, draft, metadata } = options;
 
   if (!to) {
     return { success: false, error: "Recipient email required" };
   }
 
-  // For MVP, we'll just log the email that would be sent
-  // In production, this would use an email service API
-  console.log("Email delivery (stub):", {
+  // Try to use real email provider if configured
+  const emailProvider = createEmailProvider(env);
+
+  if (emailProvider) {
+    // Use real email provider (Mailgun or SendGrid)
+    try {
+      const emailSubject = `[Suggested Reply] ${subject}`;
+      const htmlContent = generateEmailTemplate(draft, metadata);
+
+      const result = await emailProvider.send({
+        to: env.HOST_EMAIL || to,
+        subject: emailSubject,
+        html: htmlContent,
+        text: draft, // Plain text fallback
+      });
+
+      if (result.success) {
+        console.log(`[${new Date().toISOString()}] Email sent via provider`, {
+          provider: emailProvider.constructor.name,
+          messageId: result.messageId,
+          to: env.HOST_EMAIL || to,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Email provider error`, {
+        error: error.message,
+        stack: error.stack,
+      });
+      return {
+        success: false,
+        error: `Email provider error: ${error.message}`,
+      };
+    }
+  }
+
+  // Fallback to stub if no provider configured
+  console.warn("Email delivery (stub): No email provider configured", {
     to,
     subject: `[Suggested Reply] ${subject}`,
     hasDraft: !!draft,
@@ -36,14 +71,6 @@ export async function sendHostNotification(env, options) {
       timestamps: metadata?.timestamps || [],
     },
   });
-
-  // In production, this would be:
-  // const emailService = new EmailService(env.EMAIL_API_KEY);
-  // const result = await emailService.send({
-  //   to: env.HOST_EMAIL || to,
-  //   subject: `[Suggested Reply] ${subject}`,
-  //   html: generateEmailTemplate(draft, metadata),
-  // });
 
   return {
     success: true,

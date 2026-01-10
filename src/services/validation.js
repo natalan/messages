@@ -12,6 +12,12 @@ export function validateWebhookPayload(payload) {
     return { valid: false, error: "Payload must be an object" };
   }
 
+  // Validate schema_version (required)
+  if (!payload.schema_version || typeof payload.schema_version !== "string") {
+    return { valid: false, error: "Payload must contain 'schema_version' string field" };
+  }
+
+  // Validate messages array (required)
   if (!payload.messages || !Array.isArray(payload.messages)) {
     return { valid: false, error: "Payload must contain 'messages' array" };
   }
@@ -23,6 +29,9 @@ export function validateWebhookPayload(payload) {
   // Validate each message has required fields
   for (let i = 0; i < payload.messages.length; i++) {
     const msg = payload.messages[i];
+    if (!msg || typeof msg !== "object") {
+      return { valid: false, error: `Message ${i} must be an object` };
+    }
     if (!msg.id) {
       return { valid: false, error: `Message ${i} missing required field: id` };
     }
