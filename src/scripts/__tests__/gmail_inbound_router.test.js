@@ -81,7 +81,9 @@ function createTestableRouter(deps) {
       });
 
       if (result.success) {
-        Logger.log(`Request completed successfully for thread ${thread.getId()}: ${result.message}`);
+        Logger.log(
+          `Request completed successfully for thread ${thread.getId()}: ${result.message}`
+        );
         // Only remove the original label on success
         thread.removeLabel(label);
         successfulCount++;
