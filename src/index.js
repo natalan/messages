@@ -12,7 +12,6 @@ import { handleWebhookEmail } from "./routes/webhooks.js";
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const startTime = Date.now();
 
     console.log(`[${new Date().toISOString()}] ${req.method} ${url.pathname}`, {
       method: req.method,
