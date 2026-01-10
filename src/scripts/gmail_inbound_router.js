@@ -42,21 +42,21 @@ function run() {
     );
 
     const payload = {
-      source: "gmail",
+      source: "gmail_webhook",
       label: CFG.LABEL_NAME,
       threadId: thread.getId(),
-      messageCount: messages.length,
+      messageCount: slice.length, // Use slice.length to match actual messages sent
       messages: slice.map((m) => ({
         id: m.getId(),
         date: m.getDate().toISOString(),
-        from: m.getFrom(),
-        to: m.getTo(),
-        cc: m.getCc(),
-        subject: m.getSubject(),
+        from: m.getFrom() || "",
+        to: m.getTo() || "",
+        cc: m.getCc() || "",
+        subject: m.getSubject() || "",
         // Plain text body is easiest for MVP.
-        bodyPlain: m.getPlainBody(),
+        bodyPlain: m.getPlainBody() || "",
         // If you want HTML later:
-        bodyHtml: m.getBody(),
+        bodyHtml: m.getBody() || "",
       })),
     };
 

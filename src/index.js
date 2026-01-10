@@ -7,6 +7,7 @@
  */
 
 import { isAuthorized } from "./utils/auth.js";
+import { handleWebhookEmail } from "./routes/webhooks.js";
 
 export default {
   async fetch(req, env) {
@@ -36,40 +37,9 @@ export default {
       return new Response("unauthorized", { status: 401 });
     }
 
+    // Webhook routes
     if (url.pathname === "/webhooks/email" && req.method === "POST") {
-      try {
-        const payload = await req.json();
-        const messageCount = payload.messages?.length || 0;
-
-        console.log(`[${new Date().toISOString()}] Inbound email received`, {
-          source: payload.source || "unknown",
-          threadId: payload.threadId,
-          messageCount,
-          label: payload.label,
-          processingTime: Date.now() - startTime,
-        });
-
-        if (messageCount > 0) {
-          console.log(`[${new Date().toISOString()}] Message details`, {
-            messageIds: payload.messages.map((m) => m.id),
-            subjects: payload.messages.map((m) => m.subject),
-          });
-        }
-
-        return new Response(JSON.stringify({ status: "received" }), {
-          headers: { "content-type": "application/json" },
-        });
-      } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error processing inbound email`, {
-          error: error.message,
-          stack: error.stack,
-          processingTime: Date.now() - startTime,
-        });
-        return new Response(JSON.stringify({ error: "Failed to process request" }), {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        });
-      }
+      return handleWebhookEmail(req, env);
     }
 
     console.warn(`[${new Date().toISOString()}] Route not found`, {

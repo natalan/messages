@@ -52,7 +52,19 @@ describe("Email Ingest API Worker", () => {
     it("should accept valid authenticated request", async () => {
       const payload = {
         source: "gmail",
-        messages: [{ id: "123", subject: "Test" }],
+        threadId: "thread-123",
+        messageCount: 1,
+        messages: [
+          {
+            id: "msg-123",
+            date: "2024-01-01T10:00:00Z",
+            from: "guest@example.com",
+            to: "host@capehost.ai",
+            cc: "",
+            subject: "Test",
+            bodyPlain: "Test message",
+          },
+        ],
       };
 
       const req = new Request("https://example.com/webhooks/email", {
@@ -69,6 +81,8 @@ describe("Email Ingest API Worker", () => {
 
       expect(response.status).toBe(200);
       expect(json.status).toBe("received");
+      expect(json).toHaveProperty("has_suggested_reply");
+      // knowledge_item_id may be undefined if KV binding not available in test
     });
 
     it("should only accept POST method", async () => {

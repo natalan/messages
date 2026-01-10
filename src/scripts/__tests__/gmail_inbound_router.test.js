@@ -46,19 +46,19 @@ function createTestableRouter(deps) {
       );
 
       const payload = {
-        source: "gmail",
+        source: "gmail_webhook",
         label: CFG.LABEL_NAME,
         threadId: thread.getId(),
-        messageCount: messages.length,
+        messageCount: slice.length, // Use slice.length to match actual messages sent
         messages: slice.map((m) => ({
           id: m.getId(),
           date: m.getDate().toISOString(),
-          from: m.getFrom(),
-          to: m.getTo(),
-          cc: m.getCc(),
-          subject: m.getSubject(),
-          bodyPlain: m.getPlainBody(),
-          bodyHtml: m.getBody(),
+          from: m.getFrom() || "",
+          to: m.getTo() || "",
+          cc: m.getCc() || "",
+          subject: m.getSubject() || "",
+          bodyPlain: m.getPlainBody() || "",
+          bodyHtml: m.getBody() || "",
         })),
       };
 
@@ -256,7 +256,7 @@ describe("gmail_inbound_router", () => {
       const callArgs = mocks.UrlFetchApp.fetch.mock.calls[0];
       const payload = JSON.parse(callArgs[1].payload);
 
-      expect(payload.source).toBe("gmail");
+      expect(payload.source).toBe("gmail_webhook");
       expect(payload.label).toBe("capehost/inbound");
       expect(payload.threadId).toBe("thread-123");
       expect(payload.messageCount).toBe(1);
@@ -301,7 +301,7 @@ describe("gmail_inbound_router", () => {
   describe("postToWorker function", () => {
     it("should send POST request with Bearer token authorization", () => {
       const payload = {
-        source: "gmail",
+        source: "gmail_webhook",
         messages: [{ id: "msg-123" }],
       };
 
@@ -321,7 +321,7 @@ describe("gmail_inbound_router", () => {
 
     it("should include payload in request", () => {
       const payload = {
-        source: "gmail",
+        source: "gmail_webhook",
         messages: [{ id: "msg-123" }],
       };
 
@@ -336,7 +336,7 @@ describe("gmail_inbound_router", () => {
       mockResponse.getResponseCode.mockReturnValue(500);
       mockResponse.getContentText.mockReturnValue("Internal Server Error");
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
 
       expect(() => {
         script.postToWorker(payload);
@@ -350,7 +350,7 @@ describe("gmail_inbound_router", () => {
     it("should return success message with metadata", () => {
       mockResponse.getResponseCode.mockReturnValue(200);
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
       const metadata = {
         batchNumber: 1,
         messageCount: 2,
@@ -369,7 +369,7 @@ describe("gmail_inbound_router", () => {
       mockResponse.getResponseCode.mockReturnValue(401);
       mockResponse.getContentText.mockReturnValue("Unauthorized");
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
 
       expect(() => {
         script.postToWorker(payload);
@@ -379,7 +379,7 @@ describe("gmail_inbound_router", () => {
     it("should include batch information in success message", () => {
       mockResponse.getResponseCode.mockReturnValue(200);
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
       const metadata = { batchNumber: 3 };
 
       const result = script.postToWorker(payload, metadata);
@@ -390,7 +390,7 @@ describe("gmail_inbound_router", () => {
     it("should handle metadata with only some fields", () => {
       mockResponse.getResponseCode.mockReturnValue(200);
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
       const metadata = { messageCount: 5 };
 
       const result = script.postToWorker(payload, metadata);
@@ -403,7 +403,7 @@ describe("gmail_inbound_router", () => {
     it("should handle empty metadata", () => {
       mockResponse.getResponseCode.mockReturnValue(200);
 
-      const payload = { source: "gmail", messages: [] };
+      const payload = { source: "gmail_webhook", messages: [] };
 
       const result = script.postToWorker(payload);
 
