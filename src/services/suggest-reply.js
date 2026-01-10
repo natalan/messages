@@ -34,15 +34,19 @@ export async function suggestReply(thread, propertyContext = null, env = null) {
         let propertyContextText = null;
         if (propertyContext?.property_id && env) {
           try {
-            propertyContextText = await storageAdapter.getPropertyContext(env, propertyContext.property_id);
+            propertyContextText = await storageAdapter.getPropertyContext(
+              env,
+              propertyContext.property_id
+            );
           } catch (error) {
             console.warn("Failed to fetch property context:", error.message);
           }
         }
 
         // Build prompt for LLM
-        let prompt = `Generate a professional, friendly email reply for a property host responding to a guest inquiry.\n\n`;
-        
+        let prompt =
+          "Generate a professional, friendly email reply for a property host responding to a guest inquiry.\n\n";
+
         if (propertyContextText) {
           prompt += `Property context:\n${propertyContextText}\n\n`;
         }
@@ -53,10 +57,11 @@ export async function suggestReply(thread, propertyContext = null, env = null) {
 
         prompt += `Email thread history:\n${thread.full_thread_text}\n\n`;
         prompt += `Latest guest message:\nFrom: ${latestGuestMessage.from}\nSubject: ${latestGuestMessage.subject}\n\n${latestGuestMessage.bodyPlain}\n\n`;
-        prompt += `Generate a concise, helpful reply to the guest. Be warm, professional, and address any questions or concerns they may have.`;
+        prompt +=
+          "Generate a concise, helpful reply to the guest. Be warm, professional, and address any questions or concerns they may have.";
 
         const result = await llmProvider.generateReply(prompt);
-        
+
         console.log(`[${new Date().toISOString()}] LLM-generated reply`, {
           provider: llmProvider.constructor.name,
           confidence: result.confidence,

@@ -158,9 +158,7 @@ export class KVStorageAdapter extends StorageAdapter {
     }
 
     // Fetch all items in parallel
-    const items = await Promise.all(
-      itemIds.map((id) => this.getKnowledgeItem(env, id))
-    );
+    const items = await Promise.all(itemIds.map((id) => this.getKnowledgeItem(env, id)));
 
     // Filter out nulls and sort by creation time
     return items
@@ -180,15 +178,13 @@ export class KVStorageAdapter extends StorageAdapter {
     }
 
     const bookingKey = `booking:${bookingId}`;
-    const threadIds = await env.KNOWLEDGE_ITEMS.get(bookingKey, "json") || [];
+    const threadIds = (await env.KNOWLEDGE_ITEMS.get(bookingKey, "json")) || [];
 
     const bookingItemsKey = `booking:${bookingId}:items`;
-    const itemIds = await env.KNOWLEDGE_ITEMS.get(bookingItemsKey, "json") || [];
+    const itemIds = (await env.KNOWLEDGE_ITEMS.get(bookingItemsKey, "json")) || [];
 
     // Fetch all items in parallel
-    const items = await Promise.all(
-      itemIds.map((id) => this.getKnowledgeItem(env, id))
-    );
+    const items = await Promise.all(itemIds.map((id) => this.getKnowledgeItem(env, id)));
 
     return {
       threads: threadIds,
@@ -219,9 +215,7 @@ export class KVStorageAdapter extends StorageAdapter {
     const idsToFetch = limit ? itemIds.slice(-limit) : itemIds;
 
     // Fetch items in parallel
-    const items = await Promise.all(
-      idsToFetch.map((id) => this.getKnowledgeItem(env, id))
-    );
+    const items = await Promise.all(idsToFetch.map((id) => this.getKnowledgeItem(env, id)));
 
     // Filter out nulls and sort by creation time (newest first)
     return items
