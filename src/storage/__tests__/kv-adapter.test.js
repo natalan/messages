@@ -127,6 +127,7 @@ describe("KVStorageAdapter", () => {
           content_type: CONTENT_TYPES.EMAIL_MESSAGE,
           property_id: "prop-123",
           booking_id: "book-456",
+          external_thread_id: "thread-789",
           created_at: "2024-01-01T10:00:00.000Z",
         },
       });
@@ -134,46 +135,61 @@ describe("KVStorageAdapter", () => {
 
     it("should create property index when property_id exists", async () => {
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null); // No existing index
 
       await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
+      // Should create property index as ordered list
       expect(mockKV.put).toHaveBeenCalledWith(
-        expect.stringMatching(/^index:property:prop-123:.+$/),
-        expect.any(String),
+        "property:prop-123",
+        expect.stringMatching(/^\[.+\]$/), // JSON array string
         { expirationTtl: 31536000 }
       );
     });
 
     it("should create booking index when booking_id exists", async () => {
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null); // No existing index
 
       await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
+      // Should create booking index for thread IDs
       expect(mockKV.put).toHaveBeenCalledWith(
-        expect.stringMatching(/^index:booking:book-456:.+$/),
-        expect.any(String),
+        "booking:book-456",
+        expect.stringMatching(/^\[.+\]$/), // JSON array string with thread ID
+        { expirationTtl: 31536000 }
+      );
+      // Should also create booking items index
+      expect(mockKV.put).toHaveBeenCalledWith(
+        "booking:book-456:items",
+        expect.stringMatching(/^\[.+\]$/), // JSON array string with item ID
         { expirationTtl: 31536000 }
       );
     });
 
     it("should create thread index when external_thread_id exists", async () => {
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null); // No existing thread index
 
       await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
-      expect(mockKV.put).toHaveBeenCalledWith("index:thread:thread-789", expect.any(String), {
-        expirationTtl: 31536000,
-      });
+      // Should create thread index as ordered list
+      expect(mockKV.put).toHaveBeenCalledWith(
+        "thread:thread-789",
+        expect.stringMatching(/^\[.+\]$/), // JSON array string
+        { expirationTtl: 31536000 }
+      );
     });
 
     it("should not create property index when property_id is null", async () => {
       const itemWithoutProperty = { ...mockItem, property_id: null };
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null);
 
       await adapter.storeKnowledgeItem(mockEnv, itemWithoutProperty);
 
       const propertyIndexCalls = mockKV.put.mock.calls.filter((call) =>
-        call[0].startsWith("index:property:")
+        call[0].startsWith("property:")
       );
       expect(propertyIndexCalls).toHaveLength(0);
     });
@@ -181,11 +197,12 @@ describe("KVStorageAdapter", () => {
     it("should not create booking index when booking_id is null", async () => {
       const itemWithoutBooking = { ...mockItem, booking_id: null };
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null);
 
       await adapter.storeKnowledgeItem(mockEnv, itemWithoutBooking);
 
       const bookingIndexCalls = mockKV.put.mock.calls.filter((call) =>
-        call[0].startsWith("index:booking:")
+        call[0].startsWith("booking:")
       );
       expect(bookingIndexCalls).toHaveLength(0);
     });
@@ -193,11 +210,12 @@ describe("KVStorageAdapter", () => {
     it("should not create thread index when external_thread_id is null", async () => {
       const itemWithoutThread = { ...mockItem, external_thread_id: null };
       mockKV.put.mockResolvedValue();
+      mockKV.get.mockResolvedValue(null);
 
       await adapter.storeKnowledgeItem(mockEnv, itemWithoutThread);
 
       const threadIndexCalls = mockKV.put.mock.calls.filter((call) =>
-        call[0].startsWith("index:thread:")
+        call[0].startsWith("thread:")
       );
       expect(threadIndexCalls).toHaveLength(0);
     });

@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { sendHostNotification } from "../email-delivery.js";
 
 describe("email-delivery service", () => {
-  let consoleLogSpy;
+  let consoleWarnSpy;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   describe("sendHostNotification", () => {
@@ -38,7 +38,7 @@ describe("email-delivery service", () => {
 
       await sendHostNotification(env, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           subject: "[Suggested Reply] Guest question",
@@ -62,7 +62,7 @@ describe("email-delivery service", () => {
 
       await sendHostNotification(env, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           to: "host@capehost.ai",
@@ -94,7 +94,7 @@ describe("email-delivery service", () => {
       const result = await sendHostNotification(env, options);
 
       expect(result.success).toBe(true);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           metadata: expect.objectContaining({
@@ -118,7 +118,7 @@ describe("email-delivery service", () => {
 
       await sendHostNotification(env, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           metadata: expect.objectContaining({
@@ -172,7 +172,7 @@ describe("email-delivery service", () => {
       const result = await sendHostNotification(env, options);
 
       expect(result.success).toBe(true);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           hasDraft: false,
@@ -210,7 +210,7 @@ describe("email-delivery service", () => {
 
       await sendHostNotification(env, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           metadata: expect.objectContaining({
@@ -233,7 +233,7 @@ describe("email-delivery service", () => {
 
       await sendHostNotification(env, options);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         "Email delivery (stub):",
         expect.objectContaining({
           metadata: expect.objectContaining({

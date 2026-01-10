@@ -51,7 +51,8 @@ describe("Email Ingest API Worker", () => {
 
     it("should accept valid authenticated request", async () => {
       const payload = {
-        source: "gmail",
+        schema_version: "1.0.0",
+        source: "gmail_webhook",
         threadId: "thread-123",
         messageCount: 1,
         messages: [

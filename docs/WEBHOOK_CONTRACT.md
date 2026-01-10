@@ -129,7 +129,7 @@ Server error during processing:
 2. **Normalization**: Payload is normalized into internal `KnowledgeItem` format
 3. **Storage**: Knowledge item is stored with indexes for thread, booking, and property
 4. **Suggestion**: If guest message detected, a suggested reply is generated (via LLM if configured)
-5. **Delivery**: Suggested reply is delivered to host via email (if email provider configured)
+5. **Delivery**: Suggested reply delivery is logged (email provider integration can be added in the future)
 
 ## Schema Versioning
 
