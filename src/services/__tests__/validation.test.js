@@ -52,6 +52,13 @@ describe("validation service", () => {
       expect(result.error).toBe("Payload must contain 'schema_version' string field");
     });
 
+    it("should reject payload with schema_version as non-string", () => {
+      const payload = { schema_version: 123, messages: [] };
+      const result = validateWebhookPayload(payload);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Payload must contain 'schema_version' string field");
+    });
+
     it("should reject payload without messages array", () => {
       const payload = { schema_version: "1.0.0", source: "gmail_webhook" };
       const result = validateWebhookPayload(payload);

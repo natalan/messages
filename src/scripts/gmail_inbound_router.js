@@ -2,7 +2,8 @@
  * CONFIG
  */
 const CFG = {
-  LABEL_NAME: "capehost/inbound",
+  LABEL_NAME: "capehost/webhook",
+  LABEL_FAILED: "capehost/webhook-failed",
   WORKER_URL: "https://api.capehost.ai/webhooks/email",
   INGEST_TOKEN: PropertiesService.getScriptProperties().getProperty("INGEST_TOKEN"),
   MAX_THREADS_PER_RUN: 10,
@@ -20,10 +21,19 @@ function run() {
     return;
   }
 
+  // Get or create the failed label
+  let failedLabel = GmailApp.getUserLabelByName(CFG.LABEL_FAILED);
+  if (!failedLabel) {
+    failedLabel = GmailApp.createLabel(CFG.LABEL_FAILED);
+    Logger.log(`Created label: ${CFG.LABEL_FAILED}`);
+  }
+
   const threads = label.getThreads(0, CFG.MAX_THREADS_PER_RUN);
   Logger.log(`Found ${threads.length} thread(s) with label: ${CFG.LABEL_NAME}`);
 
   let totalMessagesFound = 0;
+  let successfulCount = 0;
+  let failedCount = 0;
   const allSubjects = [];
   let batchNumber = 0;
 
@@ -42,6 +52,7 @@ function run() {
     );
 
     const payload = {
+      schema_version: "1.0.0",
       source: "gmail_webhook",
       label: CFG.LABEL_NAME,
       threadId: thread.getId(),
@@ -60,51 +71,76 @@ function run() {
       })),
     };
 
-    const status = postToWorker(payload, {
+    const result = postToWorker(payload, {
       batchNumber,
       messageCount: slice.length,
       subjects,
       threadId: thread.getId(),
     });
-    Logger.log(`Request completed for thread ${thread.getId()}: ${status}`);
 
-    // MVP behavior: remove label so we don’t re-process the same thread forever.
-    // Alternative later: store last seen message id per thread.
-    thread.removeLabel(label);
+    if (result.success) {
+      Logger.log(`Request completed successfully for thread ${thread.getId()}: ${result.message}`);
+      // Only remove the original label on success
+      thread.removeLabel(label);
+      successfulCount++;
+    } else {
+      Logger.log(`Request failed for thread ${thread.getId()}: ${result.error}`);
+      // Keep the original label and add failed label for retry queue
+      thread.addLabel(failedLabel);
+      failedCount++;
+    }
   }
 
   Logger.log(
-    `Summary: Processed ${totalMessagesFound} message(s) total. Subject lines: ${allSubjects.join(" | ")}`
+    `Summary: Processed ${totalMessagesFound} message(s) total. Successful: ${successfulCount}, Failed: ${failedCount}. Subject lines: ${allSubjects.join(" | ")}`
   );
 }
 
 function postToWorker(payload, metadata = {}) {
-  const res = UrlFetchApp.fetch(CFG.WORKER_URL, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true,
-    headers: {
-      Authorization: `Bearer ${CFG.INGEST_TOKEN}`,
-    },
-  });
+  try {
+    const res = UrlFetchApp.fetch(CFG.WORKER_URL, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+      headers: {
+        Authorization: `Bearer ${CFG.INGEST_TOKEN}`,
+      },
+    });
 
-  const code = res.getResponseCode();
-  if (code < 200 || code >= 300) {
-    const text = res.getContentText();
-    const errorMsg = `Worker error ${code}: ${text}`;
+    const code = res.getResponseCode();
+    if (code < 200 || code >= 300) {
+      const text = res.getContentText();
+      const errorMsg = `Worker error ${code}: ${text}`;
+      Logger.log(`ERROR: ${errorMsg}`);
+      return {
+        success: false,
+        error: errorMsg,
+        statusCode: code,
+      };
+    }
+
+    const batchInfo = metadata.batchNumber ? `Batch #${metadata.batchNumber}` : "";
+    const countInfo = metadata.messageCount ? `${metadata.messageCount} message(s)` : "";
+    const subjectsInfo =
+      metadata.subjects && metadata.subjects.length > 0
+        ? `Subjects: ${metadata.subjects.join(", ")}`
+        : "";
+
+    const parts = [`Success (HTTP ${code})`, batchInfo, countInfo, subjectsInfo].filter(Boolean);
+
+    return {
+      success: true,
+      message: parts.join(" | "),
+      statusCode: code,
+    };
+  } catch (error) {
+    const errorMsg = `Request exception: ${error.message}`;
     Logger.log(`ERROR: ${errorMsg}`);
-    throw new Error(errorMsg);
+    return {
+      success: false,
+      error: errorMsg,
+      exception: true,
+    };
   }
-
-  const batchInfo = metadata.batchNumber ? `Batch #${metadata.batchNumber}` : "";
-  const countInfo = metadata.messageCount ? `${metadata.messageCount} message(s)` : "";
-  const subjectsInfo =
-    metadata.subjects && metadata.subjects.length > 0
-      ? `Subjects: ${metadata.subjects.join(", ")}`
-      : "";
-
-  const parts = [`Success (HTTP ${code})`, batchInfo, countInfo, subjectsInfo].filter(Boolean);
-
-  return parts.join(" | ");
 }
