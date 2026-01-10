@@ -162,6 +162,7 @@ describe("normalize service", () => {
 
   describe("normalizeWebhookPayload", () => {
     const mockPayload = {
+      schema_version: "1.0.0",
       source: "gmail",
       label: "capehost/webhook",
       threadId: "thread-123",
@@ -193,8 +194,8 @@ describe("normalize service", () => {
     it("should normalize payload with default values", () => {
       const result = normalizeWebhookPayload(mockPayload);
 
-      expect(result.schema_version).toBeDefined();
-      expect(result.source).toBe(SOURCE_TYPES.GMAIL_WEBHOOK);
+      expect(result.schema_version).toBe("1.0.0");
+      expect(result.source).toBe("gmail"); // Uses source from payload
       expect(result.ingest_method).toBe(INGEST_METHODS.WEBHOOK);
       expect(result.content_type).toBe(CONTENT_TYPES.EMAIL_MESSAGE);
       expect(result.external_thread_id).toBe("thread-123");

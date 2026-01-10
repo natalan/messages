@@ -112,12 +112,16 @@ npm run deploy
 │   ├── services/                   # Business logic services
 │   │   ├── normalize.js           # Email normalization (extract guest message, build thread)
 │   │   ├── validation.js          # Request validation and PII sanitization
-│   │   ├── suggest-reply.js       # Reply suggestion service (mock MVP)
-│   │   ├── email-delivery.js      # Email delivery service (stub MVP)
+│   │   ├── suggest-reply.js       # Reply suggestion service (OpenAI LLM or stub)
+│   │   ├── llm-provider.js        # LLM provider interface and OpenAI implementation
+│   │   ├── email-delivery.js      # Email delivery service (stub implementation)
 │   │   ├── index.js
 │   │   └── __tests__/             # Service unit tests
 │   ├── routes/                     # Route handlers
-│   │   └── webhooks.js            # Webhook route handlers
+│   │   ├── webhooks.js            # Webhook route handlers
+│   │   ├── properties.js          # Property context and knowledge endpoints
+│   │   ├── threads.js             # Thread retrieval endpoints
+│   │   └── bookings.js            # Booking retrieval endpoints
 │   ├── utils/                      # Utility functions
 │   │   ├── auth.js                # Authentication utilities
 │   │   └── __tests__/             # Utility tests
@@ -134,8 +138,17 @@ npm run deploy
 
 ## API Endpoints
 
-- `GET /health` - Health check endpoint (public, no authentication required)
-- `POST /webhooks/email` - Receive email webhooks with thread data (requires Bearer token authentication)
+### Public Endpoints
+
+- `GET /health` - Health check endpoint (no authentication required)
+
+### Protected Endpoints (Require Bearer Token)
+
+- `POST /webhooks/email` - Receive email webhooks with thread data
+- `POST /properties/:property_id/context` - Store property context text
+- `GET /properties/:property_id/knowledge?limit=N` - Retrieve property knowledge items
+- `GET /threads/:external_thread_id` - Retrieve all knowledge items for a thread
+- `GET /bookings/:booking_id` - Retrieve threads and items for a booking
 
 ### POST /webhooks/email
 
@@ -144,8 +157,11 @@ Receives email thread data via webhook and processes it through the complete pip
 **Request:**
 ```json
 {
+  "schema_version": "1.0.0",
   "source": "gmail_webhook",
   "threadId": "thread-123",
+  "property_id": "prop-abc123",
+  "booking_id": "book-xyz789",
   "messageCount": 2,
   "messages": [
     {
@@ -171,12 +187,85 @@ Receives email thread data via webhook and processes it through the complete pip
 }
 ```
 
+**Note:** The `schema_version` field is required. See `docs/WEBHOOK_CONTRACT.md` for complete webhook contract documentation.
+
+### POST /properties/:property_id/context
+
+Store property context text for use in reply suggestions.
+
+**Request Body:**
+```json
+{
+  "context": "This is a beautiful beachfront property with 3 bedrooms..."
+}
+```
+
+**Response:**
+```json
+{
+  "status": "stored",
+  "property_id": "prop-123"
+}
+```
+
+### GET /properties/:property_id/knowledge
+
+Retrieve knowledge items for a property.
+
+**Query Parameters:**
+- `limit` (optional) - Maximum number of items to return
+
+**Response:**
+```json
+{
+  "property_id": "prop-123",
+  "items": [...],
+  "count": 5
+}
+```
+
+**Note:** All GET endpoints sanitize responses to redact PII (emails, raw payloads).
+
+### GET /threads/:external_thread_id
+
+Retrieve all knowledge items for a thread, ordered chronologically.
+
+**Response:**
+```json
+{
+  "external_thread_id": "thread-123",
+  "items": [...],
+  "count": 3
+}
+```
+
+### GET /bookings/:booking_id
+
+Retrieve all threads and knowledge items associated with a booking.
+
+**Response:**
+```json
+{
+  "booking_id": "book-456",
+  "threads": ["thread-123", "thread-124"],
+  "items": [...],
+  "item_count": 5,
+  "thread_count": 2
+}
+```
+
 ## Environment Variables
 
 Set the following in your Cloudflare Workers dashboard or `.dev.vars` for local development:
 
+### Required
 - `INGEST_TOKEN` - Bearer token for authenticating webhook requests (required)
+
+### Optional
+- `INGEST_TOKEN_OLD` - Old bearer token for token rotation support (optional)
 - `HOST_EMAIL` - Host email address for receiving suggested replies (optional, defaults to `host@capehost.ai`)
+- `OPENAI_API_KEY` - OpenAI API key for LLM-powered reply suggestions (optional, uses stub if not configured)
+- `OPENAI_MODEL` - OpenAI model to use (optional, defaults to `gpt-4o-mini`)
 
 ### Cloudflare KV Namespace
 
@@ -238,19 +327,22 @@ Tests are located in:
 - `src/scripts/__tests__/` - Unit tests for Gmail router script
 
 **Test Coverage:**
-- 54 tests passing
+- 131 tests passing
 - Comprehensive normalization logic tests (18 tests)
-- Webhook validation and authentication tests
+- Webhook validation and authentication tests (including schema_version requirement)
+- Storage adapter tests (KV indexes, property context, thread/booking retrieval)
+- Email delivery and LLM provider tests
 - Edge cases and error handling
 
 The test setup runs tests in the actual Cloudflare Workers runtime, ensuring your code works correctly in the production environment.
 
 ## Security
 
-- **Authentication**: All webhook endpoints require Bearer token authentication
-- **Request Validation**: Structured payload validation with clear error messages
-- **PII Protection**: Sensitive data (email addresses, message bodies) is sanitized in logs
+- **Authentication**: All protected endpoints require Bearer token authentication (supports token rotation via `INGEST_TOKEN_OLD`)
+- **Request Validation**: Structured payload validation with schema versioning (`schema_version` required)
+- **PII Protection**: Sensitive data (email addresses, message bodies, raw payloads) is sanitized in logs and API responses
 - **Structured Logging**: Comprehensive logging with timestamps and metadata (PII redacted)
+- **Indexed Storage**: Knowledge items stored with thread/booking/property indexes for efficient retrieval while maintaining data isolation
 
 ## Code Quality
 
@@ -264,15 +356,23 @@ This project uses ESLint and Prettier for code quality and formatting:
 
 See `.cursorrules` for AI coding assistant guidelines.
 
+## Features
+
+- ✅ **Webhook Contract**: Versioned webhook schema with `schema_version` requirement
+- ✅ **KV Indexes**: Thread, booking, and property indexes for efficient knowledge item retrieval
+- ✅ **Property Context**: Store property-specific context text for enhanced reply suggestions
+- ✅ **Debugging Endpoints**: Retrieve knowledge items by thread, booking, or property
+- ✅ **OpenAI Integration**: LLM-powered reply suggestions (configurable via `OPENAI_API_KEY`)
+- ✅ **Token Rotation**: Support for seamless token rotation via `INGEST_TOKEN_OLD`
+
 ## Future Enhancements
 
-- **AI Integration**: Replace mock reply generation with OpenAI/Anthropic integration
-- **Email Service**: Integrate with SendGrid, Resend, or similar for actual email delivery
-- **D1 Database**: Migrate from KV to D1 for better query support
-- **Property Context**: Enhance property-aware features with property database
-- **Booking Integration**: Connect with booking platforms (Airbnb, VRBO) APIs
-- **Manual Upload**: Support PDF/image/text uploads via API
-- **Vector DB**: Add embeddings and semantic search capabilities
+- **Email Service**: Integrate with email service provider (SendGrid, Resend, Mailgun, etc.) for actual email delivery (currently stub implementation)
+- **D1 Database**: Migrate from KV to D1 for better query support and analytics
+- **Property Database**: Enhance property-aware features with full property database integration
+- **Booking Integration**: Connect with booking platforms (Airbnb, VRBO) APIs for automatic booking_id extraction
+- **Manual Upload**: Support PDF/image/text uploads via API for additional knowledge sources
+- **Vector DB**: Add embeddings and semantic search capabilities for better context retrieval
 
 ## Google Apps Script Integration
 
@@ -289,6 +389,12 @@ The `src/scripts/gmail_inbound_router.js` script is designed to run in Google Ap
 - `WORKER_URL`: Worker webhook endpoint URL
 - `MAX_THREADS_PER_RUN`: Maximum threads to process per run (default: 10)
 - `MAX_MESSAGES_PER_THREAD`: Maximum messages per thread to include (default: 5)
+
+## Documentation
+
+- **Webhook Contract**: See `docs/WEBHOOK_CONTRACT.md` for complete webhook API documentation
+- **Contributing**: See `.github/CONTRIBUTING.md` for contribution guidelines
+- **Branch Protection**: See `.github/BRANCH_PROTECTION.md` for CI/CD setup
 
 ## Learn More
 

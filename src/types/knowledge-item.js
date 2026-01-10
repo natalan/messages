@@ -30,11 +30,14 @@
 
 /**
  * @typedef {Object} WebhookPayload
- * @property {string} source - Source type
- * @property {string} label - Label/identifier
- * @property {string} threadId - Thread identifier
- * @property {number} messageCount - Total message count
- * @property {EmailMessage[]} messages - Array of email messages
+ * @property {string} schema_version - Schema version (required, e.g. "1.0.0")
+ * @property {string} source - Source type (optional, default: "gmail_webhook")
+ * @property {string} [label] - Label/identifier (optional)
+ * @property {string} [threadId] - External thread identifier (optional)
+ * @property {number} [messageCount] - Total message count (optional, inferred from messages array)
+ * @property {string} [property_id] - Property identifier (optional)
+ * @property {string} [booking_id] - Booking identifier (optional)
+ * @property {EmailMessage[]} messages - Array of email messages (required, must contain at least one)
  */
 
 /**
