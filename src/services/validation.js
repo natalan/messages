@@ -12,6 +12,10 @@ export function validateWebhookPayload(payload) {
     return { valid: false, error: "Payload must be an object" };
   }
 
+  if (!payload.schema_version || typeof payload.schema_version !== "string") {
+    return { valid: false, error: "Payload must contain 'schema_version' string field" };
+  }
+
   if (!payload.messages || !Array.isArray(payload.messages)) {
     return { valid: false, error: "Payload must contain 'messages' array" };
   }

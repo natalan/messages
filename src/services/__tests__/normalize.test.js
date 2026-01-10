@@ -163,7 +163,7 @@ describe("normalize service", () => {
   describe("normalizeWebhookPayload", () => {
     const mockPayload = {
       source: "gmail",
-      label: "capehost/inbound",
+      label: "capehost/webhook",
       threadId: "thread-123",
       messageCount: 2,
       messages: [

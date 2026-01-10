@@ -6,7 +6,8 @@ function createTestableRouter(deps) {
   const { PropertiesService, GmailApp, UrlFetchApp, Logger } = deps;
 
   const CFG = {
-    LABEL_NAME: "capehost/inbound",
+    LABEL_NAME: "capehost/webhook",
+    LABEL_FAILED: "capehost/webhook-failed",
     WORKER_URL: "https://api.capehost.ai/webhooks/email",
     INGEST_TOKEN: PropertiesService.getScriptProperties().getProperty("INGEST_TOKEN"),
     MAX_THREADS_PER_RUN: 10,
@@ -24,10 +25,19 @@ function createTestableRouter(deps) {
       return;
     }
 
+    // Get or create the failed label
+    let failedLabel = GmailApp.getUserLabelByName(CFG.LABEL_FAILED);
+    if (!failedLabel) {
+      failedLabel = GmailApp.createLabel(CFG.LABEL_FAILED);
+      Logger.log(`Created label: ${CFG.LABEL_FAILED}`);
+    }
+
     const threads = label.getThreads(0, CFG.MAX_THREADS_PER_RUN);
     Logger.log(`Found ${threads.length} thread(s) with label: ${CFG.LABEL_NAME}`);
 
     let totalMessagesFound = 0;
+    let successfulCount = 0;
+    let failedCount = 0;
     const allSubjects = [];
     let batchNumber = 0;
 
@@ -46,6 +56,7 @@ function createTestableRouter(deps) {
       );
 
       const payload = {
+        schema_version: "1.0.0",
         source: "gmail_webhook",
         label: CFG.LABEL_NAME,
         threadId: thread.getId(),
@@ -62,51 +73,78 @@ function createTestableRouter(deps) {
         })),
       };
 
-      const status = postToWorker(payload, {
+      const result = postToWorker(payload, {
         batchNumber,
         messageCount: slice.length,
         subjects,
         threadId: thread.getId(),
       });
-      Logger.log(`Request completed for thread ${thread.getId()}: ${status}`);
 
-      thread.removeLabel(label);
+      if (result.success) {
+        Logger.log(`Request completed successfully for thread ${thread.getId()}: ${result.message}`);
+        // Only remove the original label on success
+        thread.removeLabel(label);
+        successfulCount++;
+      } else {
+        Logger.log(`Request failed for thread ${thread.getId()}: ${result.error}`);
+        // Keep the original label and add failed label for retry queue
+        thread.addLabel(failedLabel);
+        failedCount++;
+      }
     }
 
     Logger.log(
-      `Summary: Processed ${totalMessagesFound} message(s) total. Subject lines: ${allSubjects.join(" | ")}`
+      `Summary: Processed ${totalMessagesFound} message(s) total. Successful: ${successfulCount}, Failed: ${failedCount}. Subject lines: ${allSubjects.join(" | ")}`
     );
   }
 
   function postToWorker(payload, metadata = {}) {
-    const res = UrlFetchApp.fetch(CFG.WORKER_URL, {
-      method: "post",
-      contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true,
-      headers: {
-        Authorization: `Bearer ${CFG.INGEST_TOKEN}`,
-      },
-    });
+    try {
+      const res = UrlFetchApp.fetch(CFG.WORKER_URL, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true,
+        headers: {
+          Authorization: `Bearer ${CFG.INGEST_TOKEN}`,
+        },
+      });
 
-    const code = res.getResponseCode();
-    if (code < 200 || code >= 300) {
-      const text = res.getContentText();
-      const errorMsg = `Worker error ${code}: ${text}`;
+      const code = res.getResponseCode();
+      if (code < 200 || code >= 300) {
+        const text = res.getContentText();
+        const errorMsg = `Worker error ${code}: ${text}`;
+        Logger.log(`ERROR: ${errorMsg}`);
+        return {
+          success: false,
+          error: errorMsg,
+          statusCode: code,
+        };
+      }
+
+      const batchInfo = metadata.batchNumber ? `Batch #${metadata.batchNumber}` : "";
+      const countInfo = metadata.messageCount ? `${metadata.messageCount} message(s)` : "";
+      const subjectsInfo =
+        metadata.subjects && metadata.subjects.length > 0
+          ? `Subjects: ${metadata.subjects.join(", ")}`
+          : "";
+
+      const parts = [`Success (HTTP ${code})`, batchInfo, countInfo, subjectsInfo].filter(Boolean);
+
+      return {
+        success: true,
+        message: parts.join(" | "),
+        statusCode: code,
+      };
+    } catch (error) {
+      const errorMsg = `Request exception: ${error.message}`;
       Logger.log(`ERROR: ${errorMsg}`);
-      throw new Error(errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+        exception: true,
+      };
     }
-
-    const batchInfo = metadata.batchNumber ? `Batch #${metadata.batchNumber}` : "";
-    const countInfo = metadata.messageCount ? `${metadata.messageCount} message(s)` : "";
-    const subjectsInfo =
-      metadata.subjects && metadata.subjects.length > 0
-        ? `Subjects: ${metadata.subjects.join(", ")}`
-        : "";
-
-    const parts = [`Success (HTTP ${code})`, batchInfo, countInfo, subjectsInfo].filter(Boolean);
-
-    return parts.join(" | ");
   }
 
   return { run, postToWorker, CFG };
@@ -149,6 +187,7 @@ describe("gmail_inbound_router", () => {
       getId: vi.fn(() => "thread-123"),
       getMessages: vi.fn(() => [mockMessage]),
       removeLabel: vi.fn(),
+      addLabel: vi.fn(),
     };
 
     // Setup response mock
@@ -163,6 +202,9 @@ describe("gmail_inbound_router", () => {
       },
       GmailApp: {
         getUserLabelByName: vi.fn(() => mockLabel),
+        createLabel: vi.fn(() => ({
+          getName: vi.fn(() => "capehost/webhook-failed"),
+        })),
       },
       UrlFetchApp: {
         fetch: vi.fn(() => mockResponse),
@@ -194,7 +236,7 @@ describe("gmail_inbound_router", () => {
     });
 
     it("should have correct configuration values", () => {
-      expect(script.CFG.LABEL_NAME).toBe("capehost/inbound");
+      expect(script.CFG.LABEL_NAME).toBe("capehost/webhook");
       expect(script.CFG.WORKER_URL).toBe("https://api.capehost.ai/webhooks/email");
       expect(script.CFG.MAX_THREADS_PER_RUN).toBe(10);
       expect(script.CFG.MAX_MESSAGES_PER_THREAD).toBe(5);
@@ -207,9 +249,9 @@ describe("gmail_inbound_router", () => {
 
       script.run();
 
-      expect(mocks.GmailApp.getUserLabelByName).toHaveBeenCalledWith("capehost/inbound");
+      expect(mocks.GmailApp.getUserLabelByName).toHaveBeenCalledWith("capehost/webhook");
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        `Warning: Label not found: capehost/inbound. Skipping execution.`
+        `Warning: Label not found: capehost/webhook. Skipping execution.`
       );
       expect(mocks.UrlFetchApp.fetch).not.toHaveBeenCalled();
     });
@@ -221,7 +263,7 @@ describe("gmail_inbound_router", () => {
 
       expect(mockLabel.getThreads).toHaveBeenCalledWith(0, 10);
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        `Found 1 thread(s) with label: capehost/inbound`
+        `Found 1 thread(s) with label: capehost/webhook`
       );
     });
 
@@ -256,8 +298,9 @@ describe("gmail_inbound_router", () => {
       const callArgs = mocks.UrlFetchApp.fetch.mock.calls[0];
       const payload = JSON.parse(callArgs[1].payload);
 
+      expect(payload.schema_version).toBe("1.0.0");
       expect(payload.source).toBe("gmail_webhook");
-      expect(payload.label).toBe("capehost/inbound");
+      expect(payload.label).toBe("capehost/webhook");
       expect(payload.threadId).toBe("thread-123");
       expect(payload.messageCount).toBe(1);
       expect(payload.messages).toHaveLength(1);
@@ -273,16 +316,37 @@ describe("gmail_inbound_router", () => {
       expect(payload.messages[0].date).toBeDefined();
     });
 
-    it("should remove label after processing thread", () => {
+    it("should remove label only on successful webhook request", () => {
       mockLabel.getThreads.mockReturnValue([mockThread]);
+      mockResponse.getResponseCode.mockReturnValue(200);
 
       script.run();
 
       expect(mockThread.removeLabel).toHaveBeenCalledWith(mockLabel);
+      expect(mockThread.addLabel).not.toHaveBeenCalled();
+    });
+
+    it("should keep label and add failed label on webhook failure", () => {
+      mockLabel.getThreads.mockReturnValue([mockThread]);
+      mockResponse.getResponseCode.mockReturnValue(500);
+      mockResponse.getContentText.mockReturnValue("Internal Server Error");
+      const mockFailedLabel = { getName: vi.fn(() => "capehost/webhook-failed") };
+      mocks.GmailApp.getUserLabelByName.mockImplementation((name) => {
+        if (name === "capehost/webhook") return mockLabel;
+        if (name === "capehost/webhook-failed") return null;
+        return null;
+      });
+      mocks.GmailApp.createLabel.mockReturnValue(mockFailedLabel);
+
+      script.run();
+
+      expect(mockThread.removeLabel).not.toHaveBeenCalled();
+      expect(mockThread.addLabel).toHaveBeenCalledWith(mockFailedLabel);
     });
 
     it("should log processing information", () => {
       mockLabel.getThreads.mockReturnValue([mockThread]);
+      mockResponse.getResponseCode.mockReturnValue(200);
 
       script.run();
 
@@ -290,10 +354,10 @@ describe("gmail_inbound_router", () => {
         `Thread thread-123: Processing 1 message(s) - Subjects: Test Subject`
       );
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        expect.stringContaining("Request completed for thread thread-123")
+        expect.stringContaining("Request completed successfully for thread thread-123")
       );
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        expect.stringContaining("Summary: Processed 1 message(s) total")
+        expect.stringContaining("Summary: Processed 1 message(s) total. Successful: 1, Failed: 0")
       );
     });
   });
@@ -332,22 +396,23 @@ describe("gmail_inbound_router", () => {
       expect(JSON.parse(callArgs[1].payload)).toMatchObject(payload);
     });
 
-    it("should throw error on HTTP error response", () => {
+    it("should return error object on HTTP error response", () => {
       mockResponse.getResponseCode.mockReturnValue(500);
       mockResponse.getContentText.mockReturnValue("Internal Server Error");
 
       const payload = { source: "gmail_webhook", messages: [] };
 
-      expect(() => {
-        script.postToWorker(payload);
-      }).toThrow("Worker error 500: Internal Server Error");
+      const result = script.postToWorker(payload);
 
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Worker error 500: Internal Server Error");
+      expect(result.statusCode).toBe(500);
       expect(mocks.Logger.log).toHaveBeenCalledWith(
         "ERROR: Worker error 500: Internal Server Error"
       );
     });
 
-    it("should return success message with metadata", () => {
+    it("should return success object with metadata", () => {
       mockResponse.getResponseCode.mockReturnValue(200);
 
       const payload = { source: "gmail_webhook", messages: [] };
@@ -359,10 +424,12 @@ describe("gmail_inbound_router", () => {
 
       const result = script.postToWorker(payload, metadata);
 
-      expect(result).toContain("Success (HTTP 200)");
-      expect(result).toContain("Batch #1");
-      expect(result).toContain("2 message(s)");
-      expect(result).toContain("Subjects: Subject 1, Subject 2");
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toContain("Success (HTTP 200)");
+      expect(result.message).toContain("Batch #1");
+      expect(result.message).toContain("2 message(s)");
+      expect(result.message).toContain("Subjects: Subject 1, Subject 2");
     });
 
     it("should handle 4xx status codes as errors", () => {
@@ -371,9 +438,11 @@ describe("gmail_inbound_router", () => {
 
       const payload = { source: "gmail_webhook", messages: [] };
 
-      expect(() => {
-        script.postToWorker(payload);
-      }).toThrow("Worker error 401: Unauthorized");
+      const result = script.postToWorker(payload);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Worker error 401: Unauthorized");
+      expect(result.statusCode).toBe(401);
     });
 
     it("should include batch information in success message", () => {
@@ -384,7 +453,8 @@ describe("gmail_inbound_router", () => {
 
       const result = script.postToWorker(payload, metadata);
 
-      expect(result).toContain("Batch #3");
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("Batch #3");
     });
 
     it("should handle metadata with only some fields", () => {
@@ -395,9 +465,10 @@ describe("gmail_inbound_router", () => {
 
       const result = script.postToWorker(payload, metadata);
 
-      expect(result).toContain("Success (HTTP 200)");
-      expect(result).toContain("5 message(s)");
-      expect(result).not.toContain("Batch");
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("Success (HTTP 200)");
+      expect(result.message).toContain("5 message(s)");
+      expect(result.message).not.toContain("Batch");
     });
 
     it("should handle empty metadata", () => {
@@ -407,7 +478,9 @@ describe("gmail_inbound_router", () => {
 
       const result = script.postToWorker(payload);
 
-      expect(result).toBe("Success (HTTP 200)");
+      expect(result.success).toBe(true);
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe("Success (HTTP 200)");
     });
   });
 
@@ -418,10 +491,10 @@ describe("gmail_inbound_router", () => {
       script.run();
 
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        `Found 0 thread(s) with label: capehost/inbound`
+        `Found 0 thread(s) with label: capehost/webhook`
       );
       expect(mocks.Logger.log).toHaveBeenCalledWith(
-        `Summary: Processed 0 message(s) total. Subject lines: `
+        `Summary: Processed 0 message(s) total. Successful: 0, Failed: 0. Subject lines: `
       );
       expect(mocks.UrlFetchApp.fetch).not.toHaveBeenCalled();
     });
@@ -473,6 +546,7 @@ describe("gmail_inbound_router", () => {
       expect(mocks.UrlFetchApp.fetch).toHaveBeenCalledTimes(2);
       expect(mockThread.removeLabel).toHaveBeenCalled();
       expect(thread2.removeLabel).toHaveBeenCalled();
+      // Both threads should succeed and remove labels
     });
 
     it("should handle messages slice when fewer than MAX_MESSAGES_PER_THREAD", () => {

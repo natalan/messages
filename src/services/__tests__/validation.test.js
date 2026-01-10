@@ -4,6 +4,7 @@ import { validateWebhookPayload, sanitizeForLogging } from "../validation.js";
 describe("validation service", () => {
   describe("validateWebhookPayload", () => {
     const validPayload = {
+      schema_version: "1.0.0",
       source: "gmail_webhook",
       threadId: "thread-123",
       messages: [
@@ -42,22 +43,36 @@ describe("validation service", () => {
       expect(result.error).toBe("Payload must be an object");
     });
 
+    it("should reject payload without schema_version", () => {
+      const payload = { source: "gmail_webhook", messages: [] };
+      const result = validateWebhookPayload(payload);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Payload must contain 'schema_version' string field");
+    });
+
+    it("should reject payload with schema_version as non-string", () => {
+      const payload = { schema_version: 123, messages: [] };
+      const result = validateWebhookPayload(payload);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("Payload must contain 'schema_version' string field");
+    });
+
     it("should reject payload without messages array", () => {
-      const payload = { source: "gmail_webhook" };
+      const payload = { schema_version: "1.0.0", source: "gmail_webhook" };
       const result = validateWebhookPayload(payload);
       expect(result.valid).toBe(false);
       expect(result.error).toBe("Payload must contain 'messages' array");
     });
 
     it("should reject payload with messages as non-array", () => {
-      const payload = { messages: "not an array" };
+      const payload = { schema_version: "1.0.0", messages: "not an array" };
       const result = validateWebhookPayload(payload);
       expect(result.valid).toBe(false);
       expect(result.error).toBe("Payload must contain 'messages' array");
     });
 
     it("should reject empty messages array", () => {
-      const payload = { messages: [] };
+      const payload = { schema_version: "1.0.0", messages: [] };
       const result = validateWebhookPayload(payload);
       expect(result.valid).toBe(false);
       expect(result.error).toBe("Payload must contain at least one message");
@@ -65,6 +80,7 @@ describe("validation service", () => {
 
     it("should reject message missing id field", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             date: "2024-01-01T10:00:00Z",
@@ -79,6 +95,7 @@ describe("validation service", () => {
 
     it("should reject message missing from field", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             id: "msg-1",
@@ -93,6 +110,7 @@ describe("validation service", () => {
 
     it("should reject message missing date field", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             id: "msg-1",
@@ -107,6 +125,7 @@ describe("validation service", () => {
 
     it("should identify specific message index in error", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             id: "msg-1",
@@ -127,6 +146,7 @@ describe("validation service", () => {
 
     it("should reject messages with empty string from field", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             id: "msg-1",
@@ -142,6 +162,7 @@ describe("validation service", () => {
 
     it("should validate multiple messages correctly", () => {
       const payload = {
+        schema_version: "1.0.0",
         messages: [
           {
             id: "msg-1",
