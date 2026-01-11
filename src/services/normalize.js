@@ -20,7 +20,23 @@ function hasGuestQuestion(guestMessage, _subject) {
   const messageLower = guestMessage.toLowerCase();
 
   // Question indicators
-  const questionWords = ["?", "how", "what", "when", "where", "why", "can", "could", "would", "should", "is", "are", "do", "does", "will"];
+  const questionWords = [
+    "?",
+    "how",
+    "what",
+    "when",
+    "where",
+    "why",
+    "can",
+    "could",
+    "would",
+    "should",
+    "is",
+    "are",
+    "do",
+    "does",
+    "will",
+  ];
   const hasQuestionMark = messageLower.includes("?");
   const hasQuestionWord = questionWords.some((word) => messageLower.includes(word));
 
@@ -32,7 +48,9 @@ function hasGuestQuestion(guestMessage, _subject) {
     /^(perfect|great|excellent)$/i,
   ];
 
-  const isJustConfirmation = confirmationPatterns.some((pattern) => pattern.test(guestMessage.trim()));
+  const isJustConfirmation = confirmationPatterns.some((pattern) =>
+    pattern.test(guestMessage.trim())
+  );
 
   // If it's just a confirmation, it's not a question
   if (isJustConfirmation) {

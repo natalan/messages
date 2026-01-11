@@ -23,7 +23,7 @@ function extractGuestMessageFromBody(bodyPlain) {
   // Guest name appears before the message text
   // Pattern: NAME\n\n   [Role]\n   \n   [Message text]
   // Example: "ALISON\n   \n   Booker\n   \n   Thank you!"
-  
+
   const lines = bodyPlain.split("\n");
   let guestName = null;
   let guestMessage = null;
@@ -32,7 +32,7 @@ function extractGuestMessageFromBody(bodyPlain) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     // Skip empty lines and tracking codes
     if (!line || line.startsWith("%") || line.startsWith("http")) {
       continue;

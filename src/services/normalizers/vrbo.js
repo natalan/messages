@@ -26,7 +26,7 @@ function extractGuestMessageFromBody(bodyPlain, subject) {
   // Guest message text
   // Footer starts with "-------" or "We're here to help"
   // Example: "Vrbo: Alaina Capasso has replied to your message\n\nHi! I was wondering if I can change dates\n\n\n-------We're here to help..."
-  
+
   let guestName = null;
   let guestMessage = null;
 
@@ -42,7 +42,7 @@ function extractGuestMessageFromBody(bodyPlain, subject) {
   // Extract from body header line
   const lines = bodyPlain.split("\n");
   const headerPattern = /Vrbo:\s*(.+?)\s+has replied/i;
-  
+
   for (let i = 0; i < Math.min(lines.length, 5); i++) {
     const line = lines[i];
     const match = line.match(headerPattern);
@@ -61,7 +61,7 @@ function extractGuestMessageFromBody(bodyPlain, subject) {
       const messageLines = [];
       for (let j = messageStartIdx; j < lines.length; j++) {
         const msgLine = lines[j].trim();
-        
+
         // Stop at footer markers
         if (
           msgLine.startsWith("-------") ||
@@ -111,7 +111,10 @@ export class VrboNormalizer extends PlatformNormalizer {
       return null;
     }
 
-    const { guestName, guestMessage } = extractGuestMessageFromBody(message.bodyPlain, message.subject);
+    const { guestName, guestMessage } = extractGuestMessageFromBody(
+      message.bodyPlain,
+      message.subject
+    );
     if (!guestMessage || guestMessage.trim().length === 0) {
       return null;
     }

@@ -78,7 +78,10 @@ export async function handleWebhookEmail(req, env) {
 
     // Step 3: Generate suggested reply (if we have a guest message with a question)
     let suggestedReply = null;
-    if (knowledgeItem.normalized.latest_guest_message && knowledgeItem.normalized.has_guest_question) {
+    if (
+      knowledgeItem.normalized.latest_guest_message &&
+      knowledgeItem.normalized.has_guest_question
+    ) {
       try {
         const propertyContext = knowledgeItem.property_id
           ? { property_id: knowledgeItem.property_id, property_name: null, metadata: {} }

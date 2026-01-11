@@ -66,7 +66,10 @@ export class KVStorageAdapter extends StorageAdapter {
       const bookingKey = `booking:${itemToStore.booking_id}`;
       const existingBooking = await env.KNOWLEDGE_ITEMS.get(bookingKey, "json");
       const bookingThreads = existingBooking || [];
-      if (itemToStore.external_thread_id && !bookingThreads.includes(itemToStore.external_thread_id)) {
+      if (
+        itemToStore.external_thread_id &&
+        !bookingThreads.includes(itemToStore.external_thread_id)
+      ) {
         bookingThreads.push(itemToStore.external_thread_id);
         await env.KNOWLEDGE_ITEMS.put(bookingKey, JSON.stringify(bookingThreads), {
           expirationTtl: 31536000, // 1 year

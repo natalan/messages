@@ -5,11 +5,14 @@ Your task is to create a new branch from main, commit all changes, push to origi
 ## Steps to execute:
 
 1. **Generate PR title and description** using the current diff (from working directory)
-2. **Create branch name** from the PR title (slugified, e.g., "Add feature X" → "add-feature-x")
-3. **Create new branch** from main: `git checkout -b <branch-name>`
-4. **Commit all changes**: `git add -A && git commit -m "<commit message>"` (use PR title as commit message)
-5. **Push branch** to origin: `git push -u origin <branch-name>`
-6. **Create PR** using GitHub CLI: `gh pr create --title "<PR title>" --body "<PR description>"`
+2. **Run format check and fix**: `npm run format` (automatically fixes formatting issues)
+3. **Run lint check**: `npm run lint` (verify no linting errors)
+4. **Run tests**: `npm test` (verify all tests pass)
+5. **Create branch name** from the PR title (slugified, e.g., "Add feature X" → "add-feature-x")
+6. **Create new branch** from main: `git checkout -b <branch-name>`
+7. **Commit all changes**: `git add -A && git commit -m "<commit message>"` (use PR title as commit message)
+8. **Push branch** to origin: `git push -u origin <branch-name>`
+9. **Create PR** using GitHub CLI: `gh pr create --title "<PR title>" --body "<PR description>"`
 
 ## Formatting and generation rules:
 
@@ -31,13 +34,17 @@ Your task is to create a new branch from main, commit all changes, push to origi
 
 After generating the PR title and description:
 
-1. Check current branch - if not on main, switch to main first
-2. Create branch from main
-3. Stage all changes (`git add -A`)
-4. Commit with PR title as commit message
-5. Push branch to origin
-6. Use `gh pr create` with `--title` and `--body` flags to create the PR
-7. Output the PR URL to the user
+1. **Run code quality checks**:
+   - Run `npm run format` to fix formatting issues
+   - Run `npm run lint` to check for linting errors (fix any errors before proceeding)
+   - Run `npm test` to verify all tests pass
+2. Check current branch - if not on main, switch to main first
+3. Create branch from main
+4. Stage all changes (`git add -A`)
+5. Commit with PR title as commit message
+6. Push branch to origin
+7. Use `gh pr create` with `--title` and `--body` flags to create the PR
+8. Output the PR URL to the user
 
 ## Output Format:
 
