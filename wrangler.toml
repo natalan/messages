@@ -15,9 +15,10 @@ compatibility_date = "2024-01-01"
 # Storage bindings
 # Create KV namespace first: wrangler kv:namespace create "KNOWLEDGE_ITEMS"
 # Then uncomment and update the binding ID:
-# [[kv_namespaces]]
-# binding = "KNOWLEDGE_ITEMS"
-# id = "your-kv-namespace-id"
+[[kv_namespaces]]
+binding = "KNOWLEDGE_ITEMS"
+id = "364aef3b82d14500883fc957a3c62b90"
+preview_id = "9cd079ccd9b34037a816f0c2782d4fb4"
 
 # Logging configuration
 # Logs are enabled by default in Cloudflare Workers

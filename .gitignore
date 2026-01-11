@@ -22,6 +22,7 @@ Thumbs.db
 .vscode/
 .idea/
 .cursor/
+!.cursor/commands/pr-create.md
 *.swp
 *.swo
 *~
