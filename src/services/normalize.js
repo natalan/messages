@@ -4,27 +4,76 @@
  */
 
 import { SCHEMA_VERSION, SOURCE_TYPES, CONTENT_TYPES, INGEST_METHODS } from "../types/schema.js";
+import { getNormalizerForMessage, detectPlatform } from "./normalizers/index.js";
 
 /**
- * Identify if an email is from a guest (vs host)
- * @param {import("../types/knowledge-item.js").EmailMessage} message - Email message
- * @returns {boolean} - True if message is from a guest
+ * Check if message contains a guest question (vs just confirmation/thanks)
+ * @param {string} guestMessage - Extracted guest message text
+ * @param {string} _subject - Email subject (unused for now, reserved for future use)
+ * @returns {boolean} - True if message contains a question
  */
-function isGuestMessage(message) {
-  // Simple heuristic: guest messages typically don't come from host domains
-  // This can be enhanced with property-specific configuration later
-  const hostDomains = ["capehost.ai", "capehost.com"]; // Add more host domains as needed
-
-  if (!message.from) {
+function hasGuestQuestion(guestMessage, _subject) {
+  if (!guestMessage) {
     return false;
   }
 
-  const fromEmail = message.from.toLowerCase();
-  return !hostDomains.some((domain) => fromEmail.includes(`@${domain}`));
+  const messageLower = guestMessage.toLowerCase();
+
+  // Question indicators
+  const questionWords = [
+    "?",
+    "how",
+    "what",
+    "when",
+    "where",
+    "why",
+    "can",
+    "could",
+    "would",
+    "should",
+    "is",
+    "are",
+    "do",
+    "does",
+    "will",
+  ];
+  const hasQuestionMark = messageLower.includes("?");
+  const hasQuestionWord = questionWords.some((word) => messageLower.includes(word));
+
+  // Simple confirmations/thanks that are NOT questions
+  const confirmationPatterns = [
+    /^(thank you|thanks|thankyou)$/i,
+    /^(ok|okay|sounds good)$/i,
+    /^(confirmed|confirmation)$/i,
+    /^(perfect|great|excellent)$/i,
+  ];
+
+  const isJustConfirmation = confirmationPatterns.some((pattern) =>
+    pattern.test(guestMessage.trim())
+  );
+
+  // If it's just a confirmation, it's not a question
+  if (isJustConfirmation) {
+    return false;
+  }
+
+  // Check for question marks or question words (with some context)
+  if (hasQuestionMark) {
+    return true;
+  }
+
+  // Check for question words that indicate actual questions (not just casual use)
+  if (hasQuestionWord && messageLower.length > 20) {
+    // Longer messages with question words are more likely to be actual questions
+    return true;
+  }
+
+  return false;
 }
 
 /**
  * Extract the latest guest message from thread
+ * Uses platform normalizers to extract guest messages from platform emails
  * @param {import("../types/knowledge-item.js").EmailMessage[]} messages - Array of messages
  * @returns {import("../types/knowledge-item.js").EmailMessage|null} - Latest guest message or null
  */
@@ -40,14 +89,23 @@ export function extractLatestGuestMessage(messages) {
     return dateB - dateA; // Descending order
   });
 
-  // Find the latest guest message
+  // Check each message (newest first)
   for (const message of sortedMessages) {
-    if (isGuestMessage(message)) {
-      return message;
+    // Get the appropriate normalizer for this message
+    const normalizer = getNormalizerForMessage(message);
+    if (!normalizer) {
+      // No normalizer matched (e.g., host-to-host emails) - skip
+      continue;
+    }
+
+    // Use the normalizer to extract the guest message
+    const guestMessage = normalizer.extractGuestMessage(message);
+    if (guestMessage) {
+      return guestMessage;
     }
   }
 
-  // If no guest message found, return null (might be host-to-host thread)
+  // No guest message found
   return null;
 }
 
@@ -115,6 +173,22 @@ export function normalizeWebhookPayload(
   const from = lastMessage.from || firstMessage.from || "";
   const to = lastMessage.to || firstMessage.to || "";
 
+  // Detect platform from latest message
+  const platform = detectPlatform(from);
+
+  // Extract platform thread ID using the appropriate normalizer
+  let platformThreadId = null;
+  if (platform && lastMessage.bodyPlain) {
+    const normalizer = getNormalizerForMessage(lastMessage);
+    if (normalizer) {
+      platformThreadId = normalizer.extractPlatformThreadId(lastMessage.bodyPlain, subject);
+    }
+  }
+
+  // Check if there's a guest question
+  const guestMessageText = latestGuestMessage?.bodyPlain || null;
+  const hasQuestion = hasGuestQuestion(guestMessageText, subject);
+
   const normalized = {
     latest_guest_message: latestGuestMessage
       ? {
@@ -131,6 +205,7 @@ export function normalizeWebhookPayload(
     from,
     to,
     timestamps,
+    has_guest_question: hasQuestion,
   };
 
   // Use schema_version from payload, fall back to current SCHEMA_VERSION
@@ -153,6 +228,8 @@ export function normalizeWebhookPayload(
     property_id: finalPropertyId,
     booking_id: finalBookingId,
     external_thread_id: payload.threadId || null,
+    platform: platform || null,
+    platform_thread_id: platformThreadId || null,
     raw_payload: payload,
     normalized,
   };

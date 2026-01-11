@@ -24,24 +24,32 @@ export class KVStorageAdapter extends StorageAdapter {
       throw new Error("KV binding 'KNOWLEDGE_ITEMS' not found in environment");
     }
 
+    // Generate ID if missing and set it on the item
     const id = item.id || this.generateId();
+    const itemToStore = { ...item, id };
+
+    // Set created_at if missing
+    if (!itemToStore.created_at) {
+      itemToStore.created_at = new Date();
+    }
+
     const key = `knowledge-item:${id}`;
 
-    // Store the full item
-    await env.KNOWLEDGE_ITEMS.put(key, JSON.stringify(item), {
+    // Store the full item with ID set
+    await env.KNOWLEDGE_ITEMS.put(key, JSON.stringify(itemToStore), {
       metadata: {
-        source: item.source,
-        content_type: item.content_type,
-        property_id: item.property_id,
-        booking_id: item.booking_id,
-        external_thread_id: item.external_thread_id,
-        created_at: item.created_at.toISOString(),
+        source: itemToStore.source,
+        content_type: itemToStore.content_type,
+        property_id: itemToStore.property_id,
+        booking_id: itemToStore.booking_id,
+        external_thread_id: itemToStore.external_thread_id,
+        created_at: itemToStore.created_at.toISOString(),
       },
     });
 
     // Update thread index: thread:<external_thread_id> -> ordered list of knowledge item ids
-    if (item.external_thread_id) {
-      const threadKey = `thread:${item.external_thread_id}`;
+    if (itemToStore.external_thread_id) {
+      const threadKey = `thread:${itemToStore.external_thread_id}`;
       const existingThread = await env.KNOWLEDGE_ITEMS.get(threadKey, "json");
       const threadIds = existingThread || [];
       if (!threadIds.includes(id)) {
@@ -54,18 +62,21 @@ export class KVStorageAdapter extends StorageAdapter {
     }
 
     // Update booking index: booking:<booking_id> -> list of thread ids
-    if (item.booking_id) {
-      const bookingKey = `booking:${item.booking_id}`;
+    if (itemToStore.booking_id) {
+      const bookingKey = `booking:${itemToStore.booking_id}`;
       const existingBooking = await env.KNOWLEDGE_ITEMS.get(bookingKey, "json");
       const bookingThreads = existingBooking || [];
-      if (item.external_thread_id && !bookingThreads.includes(item.external_thread_id)) {
-        bookingThreads.push(item.external_thread_id);
+      if (
+        itemToStore.external_thread_id &&
+        !bookingThreads.includes(itemToStore.external_thread_id)
+      ) {
+        bookingThreads.push(itemToStore.external_thread_id);
         await env.KNOWLEDGE_ITEMS.put(bookingKey, JSON.stringify(bookingThreads), {
           expirationTtl: 31536000, // 1 year
         });
       }
       // Also maintain item_ids for backwards compatibility
-      const bookingItemsKey = `booking:${item.booking_id}:items`;
+      const bookingItemsKey = `booking:${itemToStore.booking_id}:items`;
       const existingBookingItems = await env.KNOWLEDGE_ITEMS.get(bookingItemsKey, "json");
       const bookingItemIds = existingBookingItems || [];
       if (!bookingItemIds.includes(id)) {
@@ -77,8 +88,8 @@ export class KVStorageAdapter extends StorageAdapter {
     }
 
     // Update property index: property:<property_id> -> list of item ids
-    if (item.property_id) {
-      const propertyKey = `property:${item.property_id}`;
+    if (itemToStore.property_id) {
+      const propertyKey = `property:${itemToStore.property_id}`;
       const existingProperty = await env.KNOWLEDGE_ITEMS.get(propertyKey, "json");
       const propertyItemIds = existingProperty || [];
       if (!propertyItemIds.includes(id)) {

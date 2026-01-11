@@ -106,11 +106,15 @@ describe("KVStorageAdapter", () => {
 
     it("should stringify item when storing", async () => {
       mockKV.put.mockResolvedValue();
-      const itemJson = JSON.stringify(mockItem);
 
-      await adapter.storeKnowledgeItem(mockEnv, mockItem);
+      const result = await adapter.storeKnowledgeItem(mockEnv, mockItem);
 
-      expect(mockKV.put).toHaveBeenCalledWith(expect.any(String), itemJson, expect.any(Object));
+      // Verify the stored item has the ID set
+      const putCalls = mockKV.put.mock.calls;
+      const mainCall = putCalls.find((call) => call[0].startsWith("knowledge-item:"));
+      const storedItem = JSON.parse(mainCall[1]);
+      expect(storedItem.id).toBe(result);
+      expect(storedItem.id).toBe(mainCall[0].replace("knowledge-item:", ""));
     });
 
     it("should store metadata correctly", async () => {

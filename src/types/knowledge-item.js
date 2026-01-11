@@ -13,6 +13,8 @@
  * @property {string|null} property_id - Property identifier (nullable)
  * @property {string|null} booking_id - Booking identifier (nullable)
  * @property {string|null} external_thread_id - External thread identifier (nullable)
+ * @property {string|null} platform - Platform identifier (airbnb, vrbo, booking.com, direct, etc.) (nullable)
+ * @property {string|null} platform_thread_id - Platform-specific thread ID (nullable, e.g., Airbnb thread number)
  * @property {Object} raw_payload - Raw payload data (JSON/blob)
  * @property {NormalizedContent} normalized - Normalized content
  */
@@ -26,6 +28,7 @@
  * @property {string} from - Sender email address
  * @property {string} to - Recipient email address
  * @property {string[]} timestamps - Array of message timestamps
+ * @property {boolean} has_guest_question - Whether the message contains a guest question requiring a reply
  */
 
 /**
