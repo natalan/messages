@@ -87,13 +87,33 @@ npm run deploy
 
 ## Architecture
 
-### Core Flow (MVP)
+### Overview
 
-1. **Ingest** - POST `/webhooks/email` receives webhook POSTs with email thread data
-2. **Normalize** - Extracts latest guest message and builds full thread history
-3. **Store** - Persists raw payload and normalized content as a "knowledge item"
-4. **Suggest** - Generates suggested reply draft using thread and property context
-5. **Deliver** - Sends suggested reply notification to host email
+The Email Ingest API processes guest messages from booking channels (Airbnb, VRBO, direct) through a complete pipeline. Threads represent collections of guest messages over time, not back-and-forth conversations. The system normalizes platform-specific email formats, stores knowledge items with indexed retrieval, and generates AI-powered reply suggestions.
+
+### Core Flow
+
+1. **Ingest** - POST `/webhooks/email` receives webhook POSTs with email thread data (guest messages only)
+2. **Normalize** - Platform normalizers extract guest messages from platform-specific email formats and build full thread history
+3. **Store** - Persists raw payload and normalized content as a "knowledge item" with indexes for thread, booking, and property lookup
+4. **Suggest** - Generates suggested reply draft using thread context, property context, and LLM (OpenAI) if configured
+5. **Deliver** - Sends suggested reply notification to host email (stub implementation, ready for email service integration)
+
+### Processing Details
+
+**Thread Model**: Threads represent collections of guest messages over time, not back-and-forth conversations. Each webhook payload contains one or more guest messages that belong to the same thread.
+
+**Platform Normalization**: The system uses platform-specific normalizers (Airbnb, VRBO, Direct) to extract guest messages from platform email formats:
+- **Airbnb Normalizer**: Parses Airbnb email format to extract guest name and message text from platform notifications
+- **VRBO Normalizer**: Parses VRBO email format to extract guest messages
+- **Direct Normalizer**: Handles direct emails (non-platform messages) that aren't from host domains
+
+**Storage Architecture**: Knowledge items are stored in Cloudflare KV with multiple indexes for efficient retrieval:
+- Main storage: `knowledge-item:{id}` - Full knowledge item with raw payload and normalized content
+- Thread index: `thread:{external_thread_id}` - Ordered list of knowledge item IDs for a thread
+- Booking index: `booking:{booking_id}` - List of thread IDs associated with a booking
+- Property index: `property:{property_id}` - List of knowledge item IDs for a property
+- Property context: `property:{property_id}:context` - Stored property context text
 
 ### Project Structure
 
@@ -107,7 +127,7 @@ npm run deploy
 │   │   └── index.js
 │   ├── storage/                    # Storage adapter interface and implementations
 │   │   ├── adapter.js             # Storage adapter interface
-│   │   ├── kv-adapter.js          # Cloudflare KV implementation
+│   │   ├── kv-adapter.js          # Cloudflare KV implementation with indexes
 │   │   └── index.js
 │   ├── services/                   # Business logic services
 │   │   ├── normalize.js           # Email normalization (extract guest message, build thread)
@@ -115,6 +135,12 @@ npm run deploy
 │   │   ├── suggest-reply.js       # Reply suggestion service (OpenAI LLM or stub)
 │   │   ├── llm-provider.js        # LLM provider interface and OpenAI implementation
 │   │   ├── email-delivery.js      # Email delivery service (stub implementation)
+│   │   ├── normalizers/           # Platform-specific normalizers
+│   │   │   ├── base.js            # Base normalizer interface
+│   │   │   ├── airbnb.js          # Airbnb platform normalizer
+│   │   │   ├── vrbo.js            # VRBO platform normalizer
+│   │   │   ├── direct.js          # Direct email normalizer
+│   │   │   └── index.js           # Normalizer registry and factory
 │   │   ├── index.js
 │   │   └── __tests__/             # Service unit tests
 │   ├── routes/                     # Route handlers
@@ -152,7 +178,7 @@ npm run deploy
 
 ### POST /webhooks/email
 
-Receives email thread data via webhook and processes it through the complete pipeline.
+Receives email thread data via webhook and processes it through the complete pipeline. Threads contain guest messages only (collections of guest messages over time, not back-and-forth conversations).
 
 **Request:**
 ```json
@@ -173,10 +199,30 @@ Receives email thread data via webhook and processes it through the complete pip
       "subject": "Question about booking",
       "bodyPlain": "Message text",
       "bodyHtml": "<p>Message text</p>"
+    },
+    {
+      "id": "msg-2",
+      "date": "2024-01-02T14:00:00Z",
+      "from": "guest@example.com",
+      "to": "host@capehost.ai",
+      "cc": "",
+      "subject": "Re: Question about booking",
+      "bodyPlain": "Follow-up question",
+      "bodyHtml": "<p>Follow-up question</p>"
     }
   ]
 }
 ```
+
+**Processing Flow:**
+1. Payload validation (schema_version, structure, required fields)
+2. Platform detection (Airbnb, VRBO, or Direct based on sender)
+3. Normalization via platform-specific normalizer (extracts guest messages from platform email formats)
+4. Latest guest message extraction (newest guest message in thread)
+5. Full thread text construction (all messages in chronological order)
+6. Knowledge item storage with indexes (thread, booking, property)
+7. Reply suggestion generation (if guest message contains a question)
+8. Host notification delivery (if suggestion generated)
 
 **Response:**
 ```json
@@ -290,6 +336,8 @@ id = "your-namespace-id"
 
 ## Data Model
 
+### Knowledge Item Structure
+
 Knowledge items are stored with the following structure:
 
 ```javascript
@@ -303,18 +351,39 @@ Knowledge items are stored with the following structure:
   property_id: string | null,
   booking_id: string | null,
   external_thread_id: string | null,
+  platform: "airbnb" | "vrbo" | "direct" | null,
+  platform_thread_id: string | null,
   raw_payload: Object,
   normalized: {
-    latest_guest_message: Object | null,
+    latest_guest_message: {
+      id: string,
+      date: string,
+      from: string,
+      subject: string,
+      bodyPlain: string
+    } | null,
     full_thread_text: string,
     message_count: number,
     subject: string,
     from: string,
     to: string,
-    timestamps: string[]
+    timestamps: string[],
+    has_guest_question: boolean
   }
 }
 ```
+
+### Storage Indexes
+
+Knowledge items are indexed for efficient retrieval:
+
+- **Thread Index** (`thread:{external_thread_id}`): Array of knowledge item IDs, ordered chronologically
+- **Booking Index** (`booking:{booking_id}`): Array of thread IDs associated with the booking
+- **Booking Items Index** (`booking:{booking_id}:items`): Array of knowledge item IDs (for backwards compatibility)
+- **Property Index** (`property:{property_id}`): Array of knowledge item IDs for the property
+- **Property Context** (`property:{property_id}:context`): Stored property context text (string)
+
+All indexes have a 1-year expiration TTL (31536000 seconds).
 
 ## Testing
 
@@ -359,11 +428,14 @@ See `.cursorrules` for AI coding assistant guidelines.
 ## Features
 
 - ✅ **Webhook Contract**: Versioned webhook schema with `schema_version` requirement
+- ✅ **Platform Normalization**: Platform-specific normalizers for Airbnb, VRBO, and direct emails to extract guest messages from platform email formats
 - ✅ **KV Indexes**: Thread, booking, and property indexes for efficient knowledge item retrieval
 - ✅ **Property Context**: Store property-specific context text for enhanced reply suggestions
 - ✅ **Debugging Endpoints**: Retrieve knowledge items by thread, booking, or property
 - ✅ **OpenAI Integration**: LLM-powered reply suggestions (configurable via `OPENAI_API_KEY`)
 - ✅ **Token Rotation**: Support for seamless token rotation via `INGEST_TOKEN_OLD`
+- ✅ **Guest Message Extraction**: Automatically extracts latest guest message from threads (collections of guest messages over time)
+- ✅ **Question Detection**: Detects guest questions to determine when reply suggestions are needed
 
 ## Future Enhancements
 

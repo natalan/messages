@@ -185,6 +185,16 @@ export function normalizeWebhookPayload(
     }
   }
 
+  // Extract property ID from platform email if not provided in payload
+  // This allows normalizers to extract platform-specific property identifiers
+  let extractedPropertyId = null;
+  if (platform && lastMessage.bodyPlain) {
+    const normalizer = getNormalizerForMessage(lastMessage);
+    if (normalizer && typeof normalizer.extractPropertyId === "function") {
+      extractedPropertyId = normalizer.extractPropertyId(lastMessage.bodyPlain, subject);
+    }
+  }
+
   // Check if there's a guest question
   const guestMessageText = latestGuestMessage?.bodyPlain || null;
   const hasQuestion = hasGuestQuestion(guestMessageText, subject);
@@ -212,7 +222,8 @@ export function normalizeWebhookPayload(
   const schemaVersion = payload.schema_version || SCHEMA_VERSION;
 
   // Extract property_id and booking_id from payload if not provided as parameters
-  const finalPropertyId = property_id || payload.property_id || null;
+  // Use extracted property ID from normalizer if payload doesn't provide it
+  const finalPropertyId = property_id || payload.property_id || extractedPropertyId || null;
   const finalBookingId = booking_id || payload.booking_id || null;
 
   // Use source from payload if available, otherwise use parameter
