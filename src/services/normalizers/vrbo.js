@@ -92,6 +92,26 @@ function extractGuestMessageFromBody(bodyPlain, subject) {
   return { guestName, guestMessage };
 }
 
+/**
+ * Extract email address from "Name <email@domain.com>" or "email@domain.com" format
+ * @param {string} fromField - From field value
+ * @returns {string} - Email address
+ */
+function extractEmailAddress(fromField) {
+  if (!fromField) {
+    return "";
+  }
+
+  // Match email in angle brackets: "Name <email@domain.com>"
+  const match = fromField.match(/<([^>]+)>/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+
+  // If no angle brackets, assume the whole field is the email
+  return fromField.trim();
+}
+
 export class VrboNormalizer extends PlatformNormalizer {
   getPlatform() {
     return "vrbo";
@@ -119,11 +139,15 @@ export class VrboNormalizer extends PlatformNormalizer {
       return null;
     }
 
+    // Extract email address from message.from to avoid duplicate names
+    // message.from is typically "Name <email@domain.com>" format
+    const emailAddress = extractEmailAddress(message.from);
+
     // Return a synthetic message object with extracted guest info
     return {
       id: message.id,
       date: message.date,
-      from: guestName ? `${guestName} (via ${message.from})` : `Guest (via ${message.from})`,
+      from: guestName ? `${guestName} (via ${emailAddress})` : `Guest (via ${emailAddress})`,
       to: message.to,
       subject: message.subject,
       bodyPlain: guestMessage,
@@ -131,17 +155,31 @@ export class VrboNormalizer extends PlatformNormalizer {
     };
   }
 
-  extractPlatformThreadId(bodyPlain, subject) {
-    // Try subject first: "Vrbo #4353572"
-    if (subject) {
-      const vrboMatch = subject.match(/Vrbo #(\d+)/);
-      if (vrboMatch && vrboMatch[1]) {
-        return vrboMatch[1];
-      }
+  extractPlatformThreadId(_bodyPlain, _subject) {
+    // VRBO doesn't have a separate thread ID in emails
+    // The "Vrbo #4353572" in the subject is the property ID, not a thread ID
+    // Thread grouping is handled by external_thread_id (Gmail thread ID)
+    return null;
+  }
+
+  /**
+   * Extract VRBO property ID from email
+   * Pattern: "Vrbo #4353572" in subject
+   * @param {string} bodyPlain - Plain text body (unused, reserved for future)
+   * @param {string} subject - Email subject
+   * @returns {string|null} - VRBO property ID or null
+   */
+  extractPropertyId(_bodyPlain, subject) {
+    if (!subject) {
+      return null;
     }
 
-    // Could also extract from body URLs if needed
-    // For now, subject extraction is sufficient
+    // Extract from subject: "Reservation from [Name]: [Dates] - Vrbo #4353572"
+    const vrboMatch = subject.match(/Vrbo #(\d+)/);
+    if (vrboMatch && vrboMatch[1]) {
+      return vrboMatch[1];
+    }
+
     return null;
   }
 }

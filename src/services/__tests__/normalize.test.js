@@ -298,5 +298,59 @@ describe("normalize service", () => {
       expect(result.normalized.from).toBeDefined();
       expect(result.normalized.to).toBeDefined();
     });
+
+    it("should extract property ID from VRBO email and normalize guest message correctly", () => {
+      // Real VRBO email format from production
+      const vrboPayload = {
+        schema_version: "1.0.0",
+        source: "gmail_webhook",
+        threadId: "19ba9b3246e7c0d6",
+        messageCount: 1,
+        messages: [
+          {
+            id: "19ba9b3246e7c0d6",
+            date: "2026-01-10T20:57:27.000Z",
+            from: "Alaina Capasso <sender@messages.homeaway.com>",
+            to: "Andrei <belmass@gmail.com>",
+            cc: "",
+            subject: "Reservation from Alaina Capasso: Aug 12 - Aug 15, 2026 - Vrbo #4353572",
+            bodyPlain:
+              "Vrbo: Alaina Capasso has replied to your message\n\nHi! I was wondering if I can change dates\n\n\n-------We're here to help. Visit our Help Centre for useful info and FAQs.\n\n© 2026 Vrbo\n\nTerms & conditions\nhttps://www.vrbo.com/lp/b/terms-of-service?locale=en_US&pos=VRBO&siteid=9001001\n\nContact Us\nhttps://help.vrbo.com/contact\n\nPrivacy\nhttps://www.vrbo.com/lp/b/privacy-policy?locale=en_US&pos=VRBO&siteid=9001001",
+            bodyHtml: "<!DOCTYPE html>...",
+          },
+        ],
+      };
+
+      const result = normalizeWebhookPayload(vrboPayload);
+
+      // Verify platform detection
+      expect(result.platform).toBe("vrbo");
+
+      // Verify property ID extraction from email
+      expect(result.property_id).toBe("4353572");
+
+      // Verify platform_thread_id is null (not property ID)
+      expect(result.platform_thread_id).toBeNull();
+
+      // Verify guest message extraction
+      expect(result.normalized.latest_guest_message).not.toBeNull();
+      expect(result.normalized.latest_guest_message.bodyPlain).toBe(
+        "Hi! I was wondering if I can change dates"
+      );
+
+      // Verify guest name extraction
+      expect(result.normalized.latest_guest_message.from).toBe(
+        "Alaina Capasso (via sender@messages.homeaway.com)"
+      );
+      // Verify no duplicate name (should be "Alaina Capasso (via sender@messages.homeaway.com)" not "Alaina Capasso (via Alaina Capasso <sender@messages.homeaway.com>)")
+      expect(result.normalized.latest_guest_message.from).not.toContain(
+        "Alaina Capasso (via Alaina Capasso"
+      );
+
+      // Verify VRBO headers/footers are removed
+      expect(result.normalized.latest_guest_message.bodyPlain).not.toContain("Vrbo:");
+      expect(result.normalized.latest_guest_message.bodyPlain).not.toContain("-------");
+      expect(result.normalized.latest_guest_message.bodyPlain).not.toContain("We're here to help");
+    });
   });
 });
